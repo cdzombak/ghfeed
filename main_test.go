@@ -796,7 +796,7 @@ func TestConsolidateCommitsIntegration(t *testing.T) {
 		},
 	}
 
-	result := consolidateCommits(inputFeed)
+	result := consolidateCommits(inputFeed, "")
 
 	// Verify feed metadata is preserved
 	if result.Title != inputFeed.Title {
@@ -927,7 +927,7 @@ func TestBranchActivityMerging(t *testing.T) {
 		},
 	}
 
-	result := consolidateCommits(inputFeed)
+	result := consolidateCommits(inputFeed, "")
 
 	// Should have 1 consolidated item (both pushes merged)
 	if len(result.Items) != 1 {
@@ -992,7 +992,7 @@ func TestDifferentUsernames(t *testing.T) {
 				},
 			}
 
-			result := consolidateCommits(inputFeed)
+			result := consolidateCommits(inputFeed, "")
 
 			// Verify username extraction worked
 			extractedUsername := extractUsername(inputFeed)

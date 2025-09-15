@@ -45,7 +45,32 @@ func main() {
 		os.Exit(0)
 	}
 
-	feedURL := os.Args[1]
+	// Parse command line arguments
+	var feedURL string
+	var customTitle string
+
+	args := os.Args[1:]
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "-retitle" {
+			if i+1 >= len(args) {
+				fmt.Fprintf(os.Stderr, "Error: -retitle flag requires a title argument\n")
+				os.Exit(1)
+			}
+			customTitle = args[i+1]
+			i++ // Skip the next argument since we consumed it
+		} else if feedURL == "" {
+			feedURL = arg
+		} else {
+			fmt.Fprintf(os.Stderr, "Error: unexpected argument: %s\n", arg)
+			os.Exit(1)
+		}
+	}
+
+	if feedURL == "" {
+		printUsage()
+		os.Exit(1)
+	}
 
 	// Parse the feed
 	fp := gofeed.NewParser()
@@ -56,7 +81,7 @@ func main() {
 	}
 
 	// Process and consolidate the feed
-	consolidatedFeed := consolidateCommits(feed)
+	consolidatedFeed := consolidateCommits(feed, customTitle)
 
 	// Render as Atom
 	err = consolidatedFeed.RenderAtom(os.Stdout, nil)
@@ -67,13 +92,17 @@ func main() {
 }
 
 // consolidateCommits groups commit/push activities by repository/branch and returns a new feed
-func consolidateCommits(feed *gofeed.Feed) *gofeed.Feed {
+func consolidateCommits(feed *gofeed.Feed, customTitle string) *gofeed.Feed {
 	// Extract username from feed link or items
 	username := extractUsername(feed)
 
 	// Create new feed with same metadata
+	title := feed.Title
+	if customTitle != "" {
+		title = customTitle
+	}
 	newFeed := &gofeed.Feed{
-		Title:         feed.Title,
+		Title:         title,
 		Description:   feed.Description,
 		Link:          feed.Link,
 		FeedLink:      feed.FeedLink,
@@ -672,8 +701,10 @@ func simplifyOtherActivity(item *gofeed.Item, username string) *gofeed.Item {
 
 // printUsage prints basic usage information
 func printUsage() {
-	fmt.Fprintf(os.Stderr, "Usage: %s <feed-url>\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Usage: %s [options] <feed-url>\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "       %s -help\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Options:\n")
+	fmt.Fprintf(os.Stderr, "  -retitle <title>    Set custom title for the output feed\n")
 }
 
 func printVersion() {
@@ -686,7 +717,10 @@ func printHelp() {
 	fmt.Printf("version %s\n\n", version)
 
 	fmt.Printf("USAGE:\n")
-	fmt.Printf("  %s <feed-url>\n\n", os.Args[0])
+	fmt.Printf("  %s [options] <feed-url>\n\n", os.Args[0])
+
+	fmt.Printf("OPTIONS:\n")
+	fmt.Printf("  -retitle <title>    Set custom title for the output feed\n\n")
 
 	fmt.Printf("DESCRIPTION:\n")
 	fmt.Printf("  Transforms verbose GitHub Atom feeds into clean, readable summaries.\n")
@@ -700,8 +734,9 @@ func printHelp() {
 	fmt.Printf("  • Generates clean HTML with clickable links\n")
 	fmt.Printf("  • Maintains chronological ordering\n\n")
 
-	fmt.Printf("EXAMPLE:\n")
-	fmt.Printf("  %s https://github.com/username.atom\n\n", os.Args[0])
+	fmt.Printf("EXAMPLES:\n")
+	fmt.Printf("  %s https://github.com/username.atom\n", os.Args[0])
+	fmt.Printf("  %s -retitle \"My Custom Feed\" https://github.com/username.atom\n\n", os.Args[0])
 
 	fmt.Printf("AUTHOR:\n")
 	fmt.Printf("  Chris Dzombak: https://dzombak.com, https://github.com/cdzombak\n\n")
