@@ -34,13 +34,18 @@ Generates a clean Atom feed with:
 Perfect for making GitHub activity feeds more readable in feed readers.
 
 > [!NOTE]  
-> Real-world output feed: TK
+> Real-world output feed example: [dzombak.com/feeds/github-cdzombak.atom](https://www.dzombak.com/feeds/github-cdzombak.atom)
 
 ## Usage
 
 ```bash
-ghfeed <feed-url>  > /path/to/output.atom
+ghfeed [options] <feed-url>  > /path/to/output.atom
 ```
+
+### Options
+
+- `-format rss|json|atom`: Set the format of the output feed
+- `-retitle "new title"`: Set the title of the output feed
 
 ### Docker
 
