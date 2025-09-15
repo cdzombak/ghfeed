@@ -25,7 +25,7 @@ The program processes these GitHub activities:
 
 ### Output
 
-Generates a clean Atom feed with:
+Generates a clean Atom/RSS/JSON feed with:
 - Consolidated commit entries showing individual commit messages and links
 - Simplified non-commit activities with essential information preserved
 - Proper chronological ordering
