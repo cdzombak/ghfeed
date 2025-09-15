@@ -44,7 +44,9 @@ ghfeed <feed-url>  > /path/to/output.atom
 
 ### Docker
 
+```shell
 docker run --rm cdzombak/ghfeed:1 <feed-url>  > /path/to/output.atom
+```
 
 ## Installation
 
