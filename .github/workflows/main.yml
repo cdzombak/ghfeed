@@ -218,7 +218,7 @@ jobs:
 
   release:
     name: GitHub (Pre)Release
-    needs: [meta, binaries]
+    needs: [meta, binaries, docker]
     if: >-
       needs.meta.outputs.is_release == 'true' ||
       needs.meta.outputs.is_prerelease == 'true'
