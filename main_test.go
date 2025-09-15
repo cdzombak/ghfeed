@@ -423,7 +423,7 @@ func TestSimplifyPullRequest(t *testing.T) {
 				containsURL string
 				containsText string
 			}{
-				title:       "cdzombak opened PR <tt>#264</tt> in <tt>mmcdole/gofeed</tt>: Allow outputting RSS, Atom, and JSON feeds",
+				title:       "cdzombak opened PR #264 in mmcdole/gofeed: Allow outputting RSS, Atom, and JSON feeds",
 				containsURL: "https://github.com/mmcdole/gofeed/pull/264",
 				containsText: "+3,415 -146",
 			},
@@ -440,7 +440,7 @@ func TestSimplifyPullRequest(t *testing.T) {
 				containsURL string
 				containsText string
 			}{
-				title:       "cdzombak opened PR <tt>#1</tt> in <tt>test/repo</tt>: Test PR",
+				title:       "cdzombak opened PR #1 in test/repo: Test PR",
 				containsURL: "https://github.com/test/repo/pull/1",
 				containsText: "Test PR",
 			},
@@ -479,7 +479,7 @@ func TestSimplifyFork(t *testing.T) {
 
 	result := simplifyFork(item, "cdzombak")
 
-	expectedTitle := "cdzombak forked <tt>mmcdole/gofeed</tt>"
+	expectedTitle := "cdzombak forked mmcdole/gofeed"
 	if result.Title != expectedTitle {
 		t.Errorf("simplifyFork().Title = %v, want %v", result.Title, expectedTitle)
 	}
@@ -502,7 +502,7 @@ func TestSimplifyBranchCreate(t *testing.T) {
 
 	result := simplifyBranchCreate(item, "cdzombak")
 
-	expectedTitle := "cdzombak created branch <tt>cdz/feed-creation</tt> in <tt>cdzombak/gofeed</tt>"
+	expectedTitle := "cdzombak created branch cdz/feed-creation in cdzombak/gofeed"
 	if result.Title != expectedTitle {
 		t.Errorf("simplifyBranchCreate().Title = %v, want %v", result.Title, expectedTitle)
 	}
@@ -532,7 +532,7 @@ func TestSimplifyTagDelete(t *testing.T) {
 				title   string
 				content string
 			}{
-				title:   "cdzombak deleted tag <tt>v0.0.6</tt> in <tt>homebrew-gomod</tt>",
+				title:   "cdzombak deleted tag v0.0.6 in homebrew-gomod",
 				content: "v0.0.6",
 			},
 		},
@@ -547,7 +547,7 @@ func TestSimplifyTagDelete(t *testing.T) {
 				title   string
 				content string
 			}{
-				title:   "cdzombak deleted tag <tt>refs/tags/v1.2.3</tt> in <tt>test</tt>",
+				title:   "cdzombak deleted tag refs/tags/v1.2.3 in test",
 				content: "refs/tags/v1.2.3",
 			},
 		},
@@ -562,7 +562,7 @@ func TestSimplifyTagDelete(t *testing.T) {
 				title   string
 				content string
 			}{
-				title:   "cdzombak deleted tag <tt>v2.1.0</tt> in <tt>project</tt>",
+				title:   "cdzombak deleted tag v2.1.0 in project",
 				content: "v2.1.0",
 			},
 		},
@@ -698,7 +698,7 @@ func TestCreateConsolidatedBranchItem(t *testing.T) {
 
 	result := createConsolidatedBranchItem(activity, "cdzombak")
 
-	expectedTitle := "cdzombak pushed 2 commits to <tt>dotfiles/master</tt>"
+	expectedTitle := "cdzombak pushed 2 commits to dotfiles/master"
 	if result.Title != expectedTitle {
 		t.Errorf("createConsolidatedBranchItem().Title = %v, want %v", result.Title, expectedTitle)
 	}
@@ -745,7 +745,7 @@ func TestCreateConsolidatedBranchItemSingleCommit(t *testing.T) {
 
 	result := createConsolidatedBranchItem(activity, "cdzombak")
 
-	expectedTitle := "cdzombak pushed 1 commit to <tt>dotfiles/master</tt>"
+	expectedTitle := "cdzombak pushed 1 commit to dotfiles/master"
 	if result.Title != expectedTitle {
 		t.Errorf("createConsolidatedBranchItem().Title = %v, want %v", result.Title, expectedTitle)
 	}
@@ -882,7 +882,7 @@ func TestConsolidateCommitsIntegration(t *testing.T) {
 	}
 
 	// Verify consolidated entry structure
-	expectedTitle := "cdzombak pushed 2 commits to <tt>dotfiles/master</tt>"
+	expectedTitle := "cdzombak pushed 2 commits to dotfiles/master"
 	if dotfilesItem.Title != expectedTitle {
 		t.Errorf("consolidated dotfiles title = %v, want %v", dotfilesItem.Title, expectedTitle)
 	}
@@ -901,7 +901,7 @@ func TestConsolidateCommitsIntegration(t *testing.T) {
 	// Find simplified PR entry
 	var prItem *gofeed.Item
 	for _, item := range result.Items {
-		if strings.Contains(item.Title, "opened PR <tt>#264</tt>") {
+		if strings.Contains(item.Title, "opened PR #264") {
 			prItem = item
 			break
 		}
@@ -911,7 +911,7 @@ func TestConsolidateCommitsIntegration(t *testing.T) {
 		t.Fatal("consolidateCommits() missing simplified PR entry")
 	}
 
-	expectedPRTitle := "cdzombak opened PR <tt>#264</tt> in <tt>mmcdole/gofeed</tt>: Allow outputting RSS, Atom, and JSON feeds"
+	expectedPRTitle := "cdzombak opened PR #264 in mmcdole/gofeed: Allow outputting RSS, Atom, and JSON feeds"
 	if prItem.Title != expectedPRTitle {
 		t.Errorf("simplified PR title = %v, want %v", prItem.Title, expectedPRTitle)
 	}
@@ -924,7 +924,7 @@ func TestConsolidateCommitsIntegration(t *testing.T) {
 	// Find simplified fork entry
 	var forkItem *gofeed.Item
 	for _, item := range result.Items {
-		if strings.Contains(item.Title, "forked <tt>mmcdole/gofeed</tt>") {
+		if strings.Contains(item.Title, "forked mmcdole/gofeed") {
 			forkItem = item
 			break
 		}
@@ -934,7 +934,7 @@ func TestConsolidateCommitsIntegration(t *testing.T) {
 		t.Fatal("consolidateCommits() missing simplified fork entry")
 	}
 
-	expectedForkTitle := "cdzombak forked <tt>mmcdole/gofeed</tt>"
+	expectedForkTitle := "cdzombak forked mmcdole/gofeed"
 	if forkItem.Title != expectedForkTitle {
 		t.Errorf("simplified fork title = %v, want %v", forkItem.Title, expectedForkTitle)
 	}
@@ -990,7 +990,7 @@ func TestBranchActivityMerging(t *testing.T) {
 	item := result.Items[0]
 
 	// Should show total commit count
-	expectedTitle := "cdzombak pushed 2 commits to <tt>dotfiles/master</tt>"
+	expectedTitle := "cdzombak pushed 2 commits to dotfiles/master"
 	if item.Title != expectedTitle {
 		t.Errorf("merged branch title = %v, want %v", item.Title, expectedTitle)
 	}
@@ -1072,7 +1072,7 @@ func TestDifferentUsernames(t *testing.T) {
 			}
 
 			// Verify title uses correct username
-			expectedPushTitle := username + " pushed 2 commits to <tt>dotfiles/master</tt>"
+			expectedPushTitle := username + " pushed 2 commits to dotfiles/master"
 			if pushItem.Title != expectedPushTitle {
 				t.Errorf("push title = %v, want %v", pushItem.Title, expectedPushTitle)
 			}
@@ -1091,7 +1091,7 @@ func TestDifferentUsernames(t *testing.T) {
 			}
 
 			// Verify PR title uses correct username
-			expectedPRTitle := username + " opened PR <tt>#264</tt> in <tt>mmcdole/gofeed</tt>: Allow outputting RSS, Atom, and JSON feeds"
+			expectedPRTitle := username + " opened PR #264 in mmcdole/gofeed: Allow outputting RSS, Atom, and JSON feeds"
 			if prItem.Title != expectedPRTitle {
 				t.Errorf("PR title = %v, want %v", prItem.Title, expectedPRTitle)
 			}
@@ -1113,7 +1113,7 @@ func TestSimplifyFunctionsWithDifferentUsers(t *testing.T) {
 			}
 
 			result := simplifyPullRequest(prItem, username)
-			expectedTitle := username + " opened PR <tt>#123</tt> in <tt>test/repo</tt>: Test PR Title"
+			expectedTitle := username + " opened PR #123 in test/repo: Test PR Title"
 			if result.Title != expectedTitle {
 				t.Errorf("simplifyPullRequest title = %v, want %v", result.Title, expectedTitle)
 			}
@@ -1125,7 +1125,7 @@ func TestSimplifyFunctionsWithDifferentUsers(t *testing.T) {
 			}
 
 			forkResult := simplifyFork(forkItem, username)
-			expectedForkTitle := username + " forked <tt>original/test</tt>"
+			expectedForkTitle := username + " forked original/test"
 			if forkResult.Title != expectedForkTitle {
 				t.Errorf("simplifyFork title = %v, want %v", forkResult.Title, expectedForkTitle)
 			}
@@ -1138,7 +1138,7 @@ func TestSimplifyFunctionsWithDifferentUsers(t *testing.T) {
 			}
 
 			branchResult := simplifyBranchCreate(branchItem, username)
-			expectedBranchTitle := username + " created branch <tt>feature</tt> in <tt>" + username + "/repo</tt>"
+			expectedBranchTitle := username + " created branch feature in " + username + "/repo"
 			if branchResult.Title != expectedBranchTitle {
 				t.Errorf("simplifyBranchCreate title = %v, want %v", branchResult.Title, expectedBranchTitle)
 			}
@@ -1151,7 +1151,7 @@ func TestSimplifyFunctionsWithDifferentUsers(t *testing.T) {
 			}
 
 			tagResult := simplifyTagDelete(tagItem, username)
-			expectedTagTitle := username + " deleted tag <tt>refs/tags/v1.0.0</tt> in <tt>repo</tt>"
+			expectedTagTitle := username + " deleted tag refs/tags/v1.0.0 in repo"
 			if tagResult.Title != expectedTagTitle {
 				t.Errorf("simplifyTagDelete title = %v, want %v", tagResult.Title, expectedTagTitle)
 			}

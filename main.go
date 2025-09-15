@@ -403,7 +403,7 @@ func createConsolidatedBranchItem(activity *BranchActivity, username string) *go
 	if commitCount == 1 {
 		commitWord = "commit"
 	}
-	title := fmt.Sprintf("%s pushed %d %s to <tt>%s/%s</tt>", username, commitCount, commitWord, activity.Repo, activity.Branch)
+	title := fmt.Sprintf("%s pushed %d %s to %s/%s", username, commitCount, commitWord, activity.Repo, activity.Branch)
 
 	// Create HTML description with commit details
 	var htmlParts []string
@@ -549,7 +549,7 @@ func simplifyPullRequest(item *gofeed.Item, username string) *gofeed.Item {
 	}
 
 	// Create simplified title
-	title := fmt.Sprintf("%s opened PR <tt>#%s</tt> in <tt>%s</tt>", username, prNumber, targetRepo)
+	title := fmt.Sprintf("%s opened PR #%s in %s", username, prNumber, targetRepo)
 	if prTitle != "" {
 		title += ": " + prTitle
 	}
@@ -595,7 +595,7 @@ func simplifyFork(item *gofeed.Item, username string) *gofeed.Item {
 		}
 	}
 
-	title := fmt.Sprintf("%s forked <tt>%s</tt>", username, sourceRepo)
+	title := fmt.Sprintf("%s forked %s", username, sourceRepo)
 
 	htmlContent := `<div style='margin-bottom: 12px;'>`
 	htmlContent += fmt.Sprintf(`<a href='%s'>View fork: <tt>%s</tt></a>`, item.Link, targetRepo)
@@ -640,9 +640,9 @@ func simplifyBranchCreate(item *gofeed.Item, username string) *gofeed.Item {
 		}
 	}
 
-	title := fmt.Sprintf("%s created branch <tt>%s</tt>", username, branchName)
+	title := fmt.Sprintf("%s created branch %s", username, branchName)
 	if repoName != "" {
-		title += fmt.Sprintf(" in <tt>%s</tt>", repoName)
+		title += fmt.Sprintf(" in %s", repoName)
 	}
 
 	htmlContent := `<div style='margin-bottom: 12px;'>`
@@ -738,9 +738,9 @@ func simplifyTagDelete(item *gofeed.Item, username string) *gofeed.Item {
 		tagName = "tag"
 	}
 
-	title := fmt.Sprintf("%s deleted tag <tt>%s</tt>", username, tagName)
+	title := fmt.Sprintf("%s deleted tag %s", username, tagName)
 	if repoName != "" {
-		title += fmt.Sprintf(" in <tt>%s</tt>", repoName)
+		title += fmt.Sprintf(" in %s", repoName)
 	}
 
 	htmlContent := `<div style='margin-bottom: 12px;'>`
@@ -750,11 +750,17 @@ func simplifyTagDelete(item *gofeed.Item, username string) *gofeed.Item {
 	}
 	htmlContent += `</div>`
 
+	// For deleted tags, link to repo homepage instead of the original link
+	link := item.Link
+	if repoName != "" {
+		link = fmt.Sprintf("https://github.com/%s/%s", username, repoName)
+	}
+
 	return &gofeed.Item{
 		Title:           title,
 		Description:     htmlContent,
 		Content:         htmlContent,
-		Link:            item.Link,
+		Link:            link,
 		Published:       item.Published,
 		PublishedParsed: item.PublishedParsed,
 		Updated:         item.Updated,
