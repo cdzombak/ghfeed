@@ -329,7 +329,7 @@ func createConsolidatedBranchItem(activity *BranchActivity, username string) *go
 	if commitCount == 1 {
 		commitWord = "commit"
 	}
-	title := fmt.Sprintf("%s pushed %d %s to %s/%s", username, commitCount, commitWord, activity.Repo, activity.Branch)
+	title := fmt.Sprintf("%s pushed %d %s to <tt>%s/%s</tt>", username, commitCount, commitWord, activity.Repo, activity.Branch)
 
 	// Create HTML description with commit details
 	var htmlParts []string
@@ -338,7 +338,7 @@ func createConsolidatedBranchItem(activity *BranchActivity, username string) *go
 	for _, commit := range activity.Commits {
 		commitHTML := fmt.Sprintf(
 			"<div style='margin-bottom: 12px;'>"+
-				"<code><a href='%s'>%s</a></code>: %s"+
+				"<tt><a href='%s'>%s</a></tt>: %s"+
 				"</div>",
 			commit.Link,
 			commit.Hash,
@@ -475,14 +475,14 @@ func simplifyPullRequest(item *gofeed.Item, username string) *gofeed.Item {
 	}
 
 	// Create simplified title
-	title := fmt.Sprintf("%s opened PR #%s in %s", username, prNumber, targetRepo)
+	title := fmt.Sprintf("%s opened PR <tt>#%s</tt> in <tt>%s</tt>", username, prNumber, targetRepo)
 	if prTitle != "" {
 		title += ": " + prTitle
 	}
 
 	// Create simplified HTML content
 	htmlContent := `<div style='margin-bottom: 12px;'>`
-	htmlContent += fmt.Sprintf(`<a href='%s'>View PR #%s</a>`, item.Link, prNumber)
+	htmlContent += fmt.Sprintf(`<a href='%s'>View PR <tt>#%s</tt></a>`, item.Link, prNumber)
 	if prTitle != "" {
 		htmlContent += fmt.Sprintf(`<div style='margin-top: 8px; font-weight: bold;'>%s</div>`, prTitle)
 	}
@@ -521,10 +521,10 @@ func simplifyFork(item *gofeed.Item, username string) *gofeed.Item {
 		}
 	}
 
-	title := fmt.Sprintf("%s forked %s", username, sourceRepo)
+	title := fmt.Sprintf("%s forked <tt>%s</tt>", username, sourceRepo)
 
 	htmlContent := `<div style='margin-bottom: 12px;'>`
-	htmlContent += fmt.Sprintf(`<a href='%s'>View fork: %s</a>`, item.Link, targetRepo)
+	htmlContent += fmt.Sprintf(`<a href='%s'>View fork: <tt>%s</tt></a>`, item.Link, targetRepo)
 	htmlContent += `</div>`
 
 	return &gofeed.Item{
@@ -566,13 +566,13 @@ func simplifyBranchCreate(item *gofeed.Item, username string) *gofeed.Item {
 		}
 	}
 
-	title := fmt.Sprintf("%s created branch %s", username, branchName)
+	title := fmt.Sprintf("%s created branch <tt>%s</tt>", username, branchName)
 	if repoName != "" {
-		title += fmt.Sprintf(" in %s", repoName)
+		title += fmt.Sprintf(" in <tt>%s</tt>", repoName)
 	}
 
 	htmlContent := `<div style='margin-bottom: 12px;'>`
-	htmlContent += fmt.Sprintf(`<a href='%s'>View branch: %s</a>`, item.Link, branchName)
+	htmlContent += fmt.Sprintf(`<a href='%s'>View branch: <tt>%s</tt></a>`, item.Link, branchName)
 	htmlContent += `</div>`
 
 	return &gofeed.Item{
@@ -626,7 +626,7 @@ func simplifyTagDelete(item *gofeed.Item, username string) *gofeed.Item {
 	// Try to extract from content
 	if item.Content != "" {
 		// First, try to extract tag name from branch-name span
-			if tagName == "" {
+		if tagName == "" {
 			tagRegex := regexp.MustCompile(`<span class="branch-name">([^<]+)</span>`)
 			matches := tagRegex.FindStringSubmatch(item.Content)
 			if len(matches) > 1 {
@@ -664,15 +664,15 @@ func simplifyTagDelete(item *gofeed.Item, username string) *gofeed.Item {
 		tagName = "tag"
 	}
 
-	title := fmt.Sprintf("%s deleted tag %s", username, tagName)
+	title := fmt.Sprintf("%s deleted tag <tt>%s</tt>", username, tagName)
 	if repoName != "" {
-		title += fmt.Sprintf(" in %s", repoName)
+		title += fmt.Sprintf(" in <tt>%s</tt>", repoName)
 	}
 
 	htmlContent := `<div style='margin-bottom: 12px;'>`
-	htmlContent += fmt.Sprintf(`Deleted tag: %s`, tagName)
+	htmlContent += fmt.Sprintf(`Deleted tag: <tt>%s</tt>`, tagName)
 	if repoName != "" {
-		htmlContent += fmt.Sprintf(` in %s`, repoName)
+		htmlContent += fmt.Sprintf(` in <tt>%s</tt>`, repoName)
 	}
 	htmlContent += `</div>`
 
