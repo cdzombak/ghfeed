@@ -625,13 +625,29 @@ func simplifyTagDelete(item *gofeed.Item, username string) *gofeed.Item {
 
 	// Try to extract from content
 	if item.Content != "" {
-		tagRegex := regexp.MustCompile(`<span class="branch-name">([^<]+)</span>.*?<a[^>]*>([^/]+/[^<]+)</a>`)
-		matches := tagRegex.FindStringSubmatch(item.Content)
-		if len(matches) > 2 {
+		// First, try to extract tag name from branch-name span
 			if tagName == "" {
-				tagName = matches[1]
+			tagRegex := regexp.MustCompile(`<span class="branch-name">([^<]+)</span>`)
+			matches := tagRegex.FindStringSubmatch(item.Content)
+			if len(matches) > 1 {
+				rawTagName := matches[1]
+				// Clean up refs/tags/ prefix if present
+				if strings.HasPrefix(rawTagName, "refs/tags/") {
+					tagName = strings.TrimPrefix(rawTagName, "refs/tags/")
+				} else {
+					tagName = rawTagName
+				}
 			}
-			repoName = matches[2]
+		}
+
+		// Then extract repo name from links
+		repoRegex := regexp.MustCompile(`<a[^>]*>([^/]+/([^<]+))</a>`)
+		matches := repoRegex.FindAllStringSubmatch(item.Content, -1)
+		for _, match := range matches {
+			if len(match) > 2 && !strings.Contains(match[1], "@") { // Skip user links
+				repoName = match[2] // Just the repo name without username
+				break
+			}
 		}
 	}
 

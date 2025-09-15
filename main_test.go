@@ -513,21 +513,73 @@ func TestSimplifyBranchCreate(t *testing.T) {
 }
 
 func TestSimplifyTagDelete(t *testing.T) {
-	item := &gofeed.Item{
-		Title:   "cdzombak deleted tag refs/tags/v0.0.6",
+	tests := []struct {
+		name     string
+		item     *gofeed.Item
+		expected struct {
+			title    string
+			content  string
+		}
+	}{
+		{
+			name: "Tag deletion with refs/tags/ prefix",
+			item: &gofeed.Item{
+				Title:   "cdzombak deleted",
 		Content: tagDeleteHTML,
 		Link:    "https://github.com/cdzombak/homebrew-gomod/compare/2b377a2203...0000000000",
+			},
+			expected: struct {
+				title   string
+				content string
+			}{
+				title:   "cdzombak deleted tag v0.0.6 in homebrew-gomod",
+				content: "v0.0.6",
+			},
+		},
+		{
+			name: "Tag deletion from title (fallback case)",
+			item: &gofeed.Item{
+				Title:   "cdzombak deleted refs/tags/v1.2.3",
+				Content: "",
+				Link:    "https://github.com/cdzombak/test/compare/abc...def",
+			},
+			expected: struct {
+				title   string
+				content string
+			}{
+				title:   "cdzombak deleted tag refs/tags/v1.2.3 in test",
+				content: "refs/tags/v1.2.3",
+			},
+		},
+		{
+			name: "Tag deletion with clean tag name",
+			item: &gofeed.Item{
+				Title:   "cdzombak deleted",
+				Content: `<span class="branch-name">refs/tags/v2.1.0</span> in <a href="/cdzombak/project">cdzombak/project</a>`,
+				Link:    "https://github.com/cdzombak/project/compare/abc...def",
+			},
+			expected: struct {
+				title   string
+				content string
+			}{
+				title:   "cdzombak deleted tag v2.1.0 in project",
+				content: "v2.1.0",
+			},
+		},
 	}
 
-	result := simplifyTagDelete(item, "cdzombak")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := simplifyTagDelete(tt.item, "cdzombak")
 
-	expectedTitle := "cdzombak deleted tag refs/tags/v0.0.6 in homebrew-gomod"
-	if result.Title != expectedTitle {
-		t.Errorf("simplifyTagDelete().Title = %v, want %v", result.Title, expectedTitle)
+			if result.Title != tt.expected.title {
+				t.Errorf("simplifyTagDelete().Title = %v, want %v", result.Title, tt.expected.title)
 	}
 
-	if !strings.Contains(result.Content, "refs/tags/v0.0.6") {
-		t.Errorf("simplifyTagDelete().Content should contain tag name, got %v", result.Content)
+			if !strings.Contains(result.Content, tt.expected.content) {
+				t.Errorf("simplifyTagDelete().Content should contain %v, got %v", tt.expected.content, result.Content)
+			}
+		})
 	}
 }
 
