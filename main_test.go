@@ -1224,3 +1224,116 @@ func TestHTMLParsingEdgeCases(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateComparisonLink(t *testing.T) {
+	tests := []struct {
+		name     string
+		activity *BranchActivity
+		username string
+		expected string
+	}{
+		{
+			name: "single commit links directly to commit",
+			activity: &BranchActivity{
+				Repo:   "test-repo",
+				Branch: "main",
+				Commits: []Commit{
+					{
+						Hash:    "abc123def456", // matches URL hash
+						Message: "Test commit",
+						Link:    "https://github.com/testuser/test-repo/commit/abc123def456",
+					},
+				},
+				CompareLink: "https://github.com/testuser/test-repo/compare/abc123def456",
+			},
+			username: "testuser",
+			expected: "https://github.com/testuser/test-repo/commit/abc123def456",
+		},
+		{
+			name: "multiple commits creates comparison link",
+			activity: &BranchActivity{
+				Repo:   "test-repo",
+				Branch: "main",
+				Commits: []Commit{
+					{
+						Hash:    "def456abc789", // newest first - matches URL hash (all hex chars)
+						Message: "Second commit",
+						Link:    "https://github.com/testuser/test-repo/commit/def456abc789",
+					},
+					{
+						Hash:    "abc123def456", // oldest last - matches URL hash
+						Message: "First commit",
+						Link:    "https://github.com/testuser/test-repo/commit/abc123def456",
+					},
+				},
+				CompareLink: "https://github.com/testuser/test-repo/compare/abc123def456...def456abc789",
+			},
+			username: "testuser",
+			expected: "https://github.com/testuser/test-repo/compare/abc123def456^...def456abc789",
+		},
+		{
+			name: "empty commits falls back to original",
+			activity: &BranchActivity{
+				Repo:        "test-repo",
+				Branch:      "main",
+				Commits:     []Commit{},
+				CompareLink: "https://github.com/testuser/test-repo/compare/original",
+			},
+			username: "testuser",
+			expected: "https://github.com/testuser/test-repo/compare/original",
+		},
+		{
+			name: "invalid commit links falls back to newest",
+			activity: &BranchActivity{
+				Repo:   "test-repo",
+				Branch: "main",
+				Commits: []Commit{
+					{
+						Hash:    "def456abc789", // matches URL hash (all hex chars)
+						Message: "Valid commit",
+						Link:    "https://github.com/testuser/test-repo/commit/def456abc789",
+					},
+					{
+						Hash:    "abc123",
+						Message: "Invalid link",
+						Link:    "invalid-url",
+					},
+				},
+				CompareLink: "https://github.com/testuser/test-repo/compare/original",
+			},
+			username: "testuser",
+			expected: "https://github.com/testuser/test-repo/commit/def456abc789",
+		},
+		{
+			name: "same commit hash for multiple commits",
+			activity: &BranchActivity{
+				Repo:   "test-repo",
+				Branch: "main",
+				Commits: []Commit{
+					{
+						Hash:    "abc123def456", // matches URL hash
+						Message: "Same commit",
+						Link:    "https://github.com/testuser/test-repo/commit/abc123def456",
+					},
+					{
+						Hash:    "abc123def456", // matches URL hash
+						Message: "Same commit duplicate",
+						Link:    "https://github.com/testuser/test-repo/commit/abc123def456",
+					},
+				},
+				CompareLink: "https://github.com/testuser/test-repo/compare/original",
+			},
+			username: "testuser",
+			expected: "https://github.com/testuser/test-repo/commit/abc123def456",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := generateComparisonLink(tt.activity, tt.username)
+			if result != tt.expected {
+				t.Errorf("generateComparisonLink() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
