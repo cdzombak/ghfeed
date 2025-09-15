@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -48,6 +49,7 @@ func main() {
 	// Parse command line arguments
 	var feedURL string
 	var customTitle string
+	var format = "atom" // default format
 
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
@@ -58,6 +60,17 @@ func main() {
 				os.Exit(1)
 			}
 			customTitle = args[i+1]
+			i++ // Skip the next argument since we consumed it
+		} else if arg == "-format" {
+			if i+1 >= len(args) {
+				fmt.Fprintf(os.Stderr, "Error: -format flag requires a format argument (atom, rss, or json)\n")
+				os.Exit(1)
+			}
+			format = args[i+1]
+			if format != "atom" && format != "rss" && format != "json" {
+				fmt.Fprintf(os.Stderr, "Error: format must be 'atom', 'rss', or 'json'\n")
+				os.Exit(1)
+			}
 			i++ // Skip the next argument since we consumed it
 		} else if feedURL == "" {
 			feedURL = arg
@@ -83,12 +96,33 @@ func main() {
 	// Process and consolidate the feed
 	consolidatedFeed := consolidateCommits(feed, customTitle)
 
-	// Render as Atom
-	err = consolidatedFeed.RenderAtom(os.Stdout, nil)
+	// Render in the specified format
+	err = renderFeed(consolidatedFeed, format)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error rendering feed: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// renderFeed outputs the feed in the specified format
+func renderFeed(feed *gofeed.Feed, format string) error {
+	switch format {
+	case "atom":
+		return feed.RenderAtom(os.Stdout, nil)
+	case "rss":
+		return feed.RenderRSS(os.Stdout, nil)
+	case "json":
+		return renderJSON(feed)
+	default:
+		return fmt.Errorf("unsupported format: %s", format)
+	}
+}
+
+// renderJSON outputs the feed as JSON
+func renderJSON(feed *gofeed.Feed) error {
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(feed)
 }
 
 // consolidateCommits groups commit/push activities by repository/branch and returns a new feed
@@ -721,6 +755,7 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "       %s -help\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "Options:\n")
 	fmt.Fprintf(os.Stderr, "  -retitle <title>    Set custom title for the output feed\n")
+	fmt.Fprintf(os.Stderr, "  -format <format>    Output format: atom, rss, or json (default: atom)\n")
 }
 
 func printVersion() {
@@ -736,7 +771,8 @@ func printHelp() {
 	fmt.Printf("  %s [options] <feed-url>\n\n", os.Args[0])
 
 	fmt.Printf("OPTIONS:\n")
-	fmt.Printf("  -retitle <title>    Set custom title for the output feed\n\n")
+	fmt.Printf("  -retitle <title>    Set custom title for the output feed\n")
+	fmt.Printf("  -format <format>    Output format: atom, rss, or json (default: atom)\n\n")
 
 	fmt.Printf("DESCRIPTION:\n")
 	fmt.Printf("  Transforms verbose GitHub Atom feeds into clean, readable summaries.\n")
@@ -752,7 +788,9 @@ func printHelp() {
 
 	fmt.Printf("EXAMPLES:\n")
 	fmt.Printf("  %s https://github.com/username.atom\n", os.Args[0])
-	fmt.Printf("  %s -retitle \"My Custom Feed\" https://github.com/username.atom\n\n", os.Args[0])
+	fmt.Printf("  %s -retitle \"My Custom Feed\" https://github.com/username.atom\n", os.Args[0])
+	fmt.Printf("  %s -format rss https://github.com/username.atom\n", os.Args[0])
+	fmt.Printf("  %s -format json -retitle \"JSON Feed\" https://github.com/username.atom\n\n", os.Args[0])
 
 	fmt.Printf("AUTHOR:\n")
 	fmt.Printf("  Chris Dzombak: https://dzombak.com, https://github.com/cdzombak\n\n")
