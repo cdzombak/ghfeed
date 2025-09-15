@@ -24,7 +24,6 @@ The program processes these GitHub activities:
 - Branch and tag management
 - Other GitHub activities
 
-
 ### Output
 
 Generates a clean Atom feed with:
@@ -34,6 +33,9 @@ Generates a clean Atom feed with:
 - Valid Atom XML format
 
 Perfect for making GitHub activity feeds more readable in feed readers.
+
+> [!NOTE]  
+> Real-world output feed: TK
 
 ## Usage
 
