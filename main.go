@@ -183,6 +183,8 @@ func consolidateCommits(feed *gofeed.Feed, customTitle string) *gofeed.Feed {
 
 	// Create consolidated items for each repository/branch
 	for _, activity := range branchGroups {
+		// Generate proper comparison link that encompasses all commits
+		activity.CompareLink = generateComparisonLink(activity, username)
 		consolidatedItem := createConsolidatedBranchItem(activity, username)
 		if consolidatedItem != nil {
 			newFeed.Items = append(newFeed.Items, consolidatedItem)
@@ -349,6 +351,44 @@ func extractCommitsFromContent(content string) []Commit {
 	}
 
 	return commits
+}
+
+// generateComparisonLink creates a GitHub comparison link that encompasses all commits in the activity
+func generateComparisonLink(activity *BranchActivity, username string) string {
+	if len(activity.Commits) == 0 {
+		return activity.CompareLink // fallback to original
+	}
+
+	// If only one commit, link directly to it
+	if len(activity.Commits) == 1 {
+		return activity.Commits[0].Link
+	}
+
+	// For multiple commits, create comparison link from oldest to newest
+	// GitHub compares show oldest..newest
+	oldestCommit := activity.Commits[len(activity.Commits)-1] // commits are typically in newest-first order
+	newestCommit := activity.Commits[0]
+
+	// Extract commit hashes from their links
+	oldestHash := extractCommitHashFromLink(oldestCommit.Link)
+	newestHash := extractCommitHashFromLink(newestCommit.Link)
+
+	if oldestHash != "" && newestHash != "" && oldestHash != newestHash {
+		return fmt.Sprintf("https://github.com/%s/%s/compare/%s...%s", username, activity.Repo, oldestHash, newestHash)
+	}
+
+	// Fallback to newest commit if we can't create comparison
+	return newestCommit.Link
+}
+
+// extractCommitHashFromLink extracts the commit hash from a GitHub commit URL
+func extractCommitHashFromLink(link string) string {
+	commitRegex := regexp.MustCompile(`/commit/([a-f0-9]+)`)
+	matches := commitRegex.FindStringSubmatch(link)
+	if len(matches) > 1 {
+		return matches[1]
+	}
+	return ""
 }
 
 // createConsolidatedBranchItem creates a single item representing all commits to a repository/branch
