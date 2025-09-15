@@ -591,7 +591,7 @@ func simplifyTagDelete(item *gofeed.Item) *gofeed.Item {
 		title += fmt.Sprintf(" in %s", repoName)
 	}
 
-	htmlContent := fmt.Sprintf(`<div style='margin-bottom: 12px;'>`)
+	htmlContent := `<div style='margin-bottom: 12px;'>`
 	htmlContent += fmt.Sprintf(`Deleted tag: %s`, tagName)
 	if repoName != "" {
 		htmlContent += fmt.Sprintf(` in %s`, repoName)
@@ -615,7 +615,7 @@ func simplifyTagDelete(item *gofeed.Item) *gofeed.Item {
 // simplifyOtherActivity creates a basic simplified version for unrecognized activities
 func simplifyOtherActivity(item *gofeed.Item) *gofeed.Item {
 	// Keep the original title but create simpler content
-	htmlContent := fmt.Sprintf(`<div style='margin-bottom: 12px;'>`)
+	htmlContent := `<div style='margin-bottom: 12px;'>`
 	if item.Link != "" {
 		htmlContent += fmt.Sprintf(`<a href='%s'>View activity</a>`, item.Link)
 	} else {
