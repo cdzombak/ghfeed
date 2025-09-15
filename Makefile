@@ -45,6 +45,10 @@ build-darwin-amd64: ## Build for macOS/amd64 to ./out
 build-darwin-arm64: ## Build for macOS/arm64 to ./out
 	env CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-X main.version=${BIN_VERSION}" -o ./out/${BIN_NAME}-${BIN_VERSION}-darwin-arm64 .
 
+.PHONY: test
+test: ## Run the full test suite
+	go test -v ./...
+
 .PHONY: lint
 lint: ## Run golangci-lint
 	golangci-lint run
