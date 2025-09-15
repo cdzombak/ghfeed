@@ -374,7 +374,7 @@ func generateComparisonLink(activity *BranchActivity, username string) string {
 	newestHash := extractCommitHashFromLink(newestCommit.Link)
 
 	if oldestHash != "" && newestHash != "" && oldestHash != newestHash {
-		return fmt.Sprintf("https://github.com/%s/%s/compare/%s...%s", username, activity.Repo, oldestHash, newestHash)
+		return fmt.Sprintf("https://github.com/%s/%s/compare/%s^...%s", username, activity.Repo, oldestHash, newestHash)
 	}
 
 	// Fallback to newest commit if we can't create comparison
