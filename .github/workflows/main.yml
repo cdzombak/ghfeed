@@ -239,6 +239,7 @@ jobs:
         with:
           files: out/${{ needs.meta.outputs.bin_name }}-*
           prerelease: ${{ needs.meta.outputs.is_prerelease == 'true' }}
+          draft: false
           fail_on_unmatched_files: true
           generate_release_notes: true
 
