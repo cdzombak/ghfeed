@@ -39,26 +39,44 @@ Perfect for making GitHub activity feeds more readable in feed readers.
 ## Usage
 
 ```bash
-ghfeed <feed-url> > /path/to/output.atom
+ghfeed <feed-url>  > /path/to/output.atom
 ```
 
 ### Docker
 
-TK
+docker run --rm cdzombak/ghfeed:1 <feed-url>  > /path/to/output.atom
 
 ## Installation
 
 ## Debian via apt repository
 
-TK
+Set up my `oss` apt repository:
+
+```shell
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://dist.cdzombak.net/keys/dist-cdzombak-net.gpg -o /etc/apt/keyrings/dist-cdzombak-net.gpg
+sudo chmod 644 /etc/apt/keyrings/dist-cdzombak-net.gpg
+sudo mkdir -p /etc/apt/sources.list.d
+sudo curl -fsSL https://dist.cdzombak.net/cdzombak-oss.sources -o /etc/apt/sources.list.d/cdzombak-oss.sources
+sudo chmod 644 /etc/apt/sources.list.d/cdzombak-oss.sources
+sudo apt update
+```
+
+Then install `ghfeed` via `apt-get`:
+
+```shell
+sudo apt-get install ghfeed
+```
 
 ## Homebrew
 
-TK
+```shell
+brew install cdzombak/oss/ghfeed
+```
 
 ## Manual from build artifacts
 
-TK
+Pre-built binaries for Linux and macOS on various architectures are downloadable from each [GitHub Release](https://github.com/cdzombak/ghfeed/releases). Debian packages for each release are available as well.
 
 ## License
 
