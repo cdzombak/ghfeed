@@ -296,7 +296,11 @@ func createConsolidatedBranchItem(activity *BranchActivity, username string) *go
 
 	// Count commits for title
 	commitCount := len(activity.Commits)
-	title := fmt.Sprintf("%s pushed %d commits to %s/%s", username, commitCount, activity.Repo, activity.Branch)
+	commitWord := "commits"
+	if commitCount == 1 {
+		commitWord = "commit"
+	}
+	title := fmt.Sprintf("%s pushed %d %s to %s/%s", username, commitCount, commitWord, activity.Repo, activity.Branch)
 
 	// Create HTML description with commit details
 	var htmlParts []string

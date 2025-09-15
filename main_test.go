@@ -674,6 +674,36 @@ func TestCreateConsolidatedBranchItem(t *testing.T) {
 	}
 }
 
+func TestCreateConsolidatedBranchItemSingleCommit(t *testing.T) {
+	publishedTime, _ := time.Parse(time.RFC3339, "2025-09-15T01:28:02Z")
+
+	activity := &BranchActivity{
+		Repo:   "dotfiles",
+		Branch: "master",
+		Commits: []Commit{
+			{
+				Hash:    "8e9b024",
+				Message: "remove Instapaper Save app",
+				Link:    "https://github.com/cdzombak/dotfiles/commit/8e9b024bede1064de870417f7e3f7aa876fa3b47",
+			},
+		},
+		LatestTime:  &publishedTime,
+		CompareLink: "https://github.com/cdzombak/dotfiles/compare/b19a1b604e...8e9b024bed",
+	}
+
+	result := createConsolidatedBranchItem(activity, "cdzombak")
+
+	expectedTitle := "cdzombak pushed 1 commit to dotfiles/master"
+	if result.Title != expectedTitle {
+		t.Errorf("createConsolidatedBranchItem().Title = %v, want %v", result.Title, expectedTitle)
+	}
+
+	// Check that the commit is in the content
+	if !strings.Contains(result.Content, "8e9b024") || !strings.Contains(result.Content, "remove Instapaper Save app") {
+		t.Errorf("createConsolidatedBranchItem().Content missing commit")
+	}
+}
+
 func TestCreateConsolidatedBranchItemNoCommits(t *testing.T) {
 	activity := &BranchActivity{
 		Repo:    "test",
