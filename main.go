@@ -68,6 +68,9 @@ func main() {
 
 // consolidateCommits groups commit/push activities by repository/branch and returns a new feed
 func consolidateCommits(feed *gofeed.Feed) *gofeed.Feed {
+	// Extract username from feed link or items
+	username := extractUsername(feed)
+
 	// Create new feed with same metadata
 	newFeed := &gofeed.Feed{
 		Title:         feed.Title,
@@ -93,7 +96,7 @@ func consolidateCommits(feed *gofeed.Feed) *gofeed.Feed {
 
 	for _, item := range feed.Items {
 		if isCommitOrPush(item.Title) {
-			activity := extractBranchActivity(item)
+			activity := extractBranchActivity(item, username)
 			if activity != nil {
 				key := fmt.Sprintf("%s/%s", activity.Repo, activity.Branch)
 				if existing, exists := branchGroups[key]; exists {
@@ -117,7 +120,7 @@ func consolidateCommits(feed *gofeed.Feed) *gofeed.Feed {
 
 	// Create consolidated items for each repository/branch
 	for _, activity := range branchGroups {
-		consolidatedItem := createConsolidatedBranchItem(activity)
+		consolidatedItem := createConsolidatedBranchItem(activity, username)
 		if consolidatedItem != nil {
 			newFeed.Items = append(newFeed.Items, consolidatedItem)
 		}
@@ -125,7 +128,7 @@ func consolidateCommits(feed *gofeed.Feed) *gofeed.Feed {
 
 	// Process and simplify non-commit items
 	for _, item := range nonCommitItems {
-		simplifiedItem := simplifyNonCommitItem(item)
+		simplifiedItem := simplifyNonCommitItem(item, username)
 		newFeed.Items = append(newFeed.Items, simplifiedItem)
 	}
 
@@ -162,12 +165,38 @@ func isCommitOrPush(title string) bool {
 	return false
 }
 
+// extractUsername extracts the GitHub username from the feed
+func extractUsername(feed *gofeed.Feed) string {
+	// Try to extract from feed link first (e.g., https://github.com/username.atom)
+	if feed.Link != "" {
+		userRegex := regexp.MustCompile(`github\.com/([^/\.]+)(?:\.atom)?`)
+		matches := userRegex.FindStringSubmatch(feed.Link)
+		if len(matches) > 1 {
+			return matches[1]
+		}
+	}
+
+	// Try to extract from feed items
+	for _, item := range feed.Items {
+		if item.Link != "" {
+			userRegex := regexp.MustCompile(`github\.com/([^/]+)/`)
+			matches := userRegex.FindStringSubmatch(item.Link)
+			if len(matches) > 1 {
+				return matches[1]
+			}
+		}
+	}
+
+	// Fallback to "user" if we can't extract username
+	return "user"
+}
+
 // extractBranchActivity extracts repository, branch, and commit data from a push item
-func extractBranchActivity(item *gofeed.Item) *BranchActivity {
+func extractBranchActivity(item *gofeed.Item, username string) *BranchActivity {
 	// Extract repo name from link
 	repoName := ""
 	if item.Link != "" {
-		repoLinkRegex := regexp.MustCompile(`github\.com/cdzombak/([\w-]+)`)
+		repoLinkRegex := regexp.MustCompile(`github\.com/` + regexp.QuoteMeta(username) + `/([\w-]+)`)
 		matches := repoLinkRegex.FindStringSubmatch(item.Link)
 		if len(matches) > 1 {
 			repoName = matches[1]
@@ -260,14 +289,14 @@ func extractCommitsFromContent(content string) []Commit {
 }
 
 // createConsolidatedBranchItem creates a single item representing all commits to a repository/branch
-func createConsolidatedBranchItem(activity *BranchActivity) *gofeed.Item {
+func createConsolidatedBranchItem(activity *BranchActivity, username string) *gofeed.Item {
 	if len(activity.Commits) == 0 {
 		return nil
 	}
 
 	// Count commits for title
 	commitCount := len(activity.Commits)
-	title := fmt.Sprintf("cdzombak pushed %d commits to %s/%s", commitCount, activity.Repo, activity.Branch)
+	title := fmt.Sprintf("%s pushed %d commits to %s/%s", username, commitCount, activity.Repo, activity.Branch)
 
 	// Create HTML description with commit details
 	var htmlParts []string
@@ -350,28 +379,28 @@ func detectActivityType(item *gofeed.Item) ActivityType {
 }
 
 // simplifyNonCommitItem creates a simplified version of non-commit GitHub activities
-func simplifyNonCommitItem(item *gofeed.Item) *gofeed.Item {
+func simplifyNonCommitItem(item *gofeed.Item, username string) *gofeed.Item {
 	activityType := detectActivityType(item)
 
 	switch activityType {
 	case ActivityPullRequest:
-		return simplifyPullRequest(item)
+		return simplifyPullRequest(item, username)
 	case ActivityFork:
-		return simplifyFork(item)
+		return simplifyFork(item, username)
 	case ActivityBranchCreate:
-		return simplifyBranchCreate(item)
+		return simplifyBranchCreate(item, username)
 	case ActivityBranchDelete:
-		return simplifyBranchDelete(item)
+		return simplifyBranchDelete(item, username)
 	case ActivityTagDelete:
-		return simplifyTagDelete(item)
+		return simplifyTagDelete(item, username)
 	default:
 		// For other activities, create a basic simplified version
-		return simplifyOtherActivity(item)
+		return simplifyOtherActivity(item, username)
 	}
 }
 
 // simplifyPullRequest creates a clean, simple pull request entry
-func simplifyPullRequest(item *gofeed.Item) *gofeed.Item {
+func simplifyPullRequest(item *gofeed.Item, username string) *gofeed.Item {
 	// Extract PR number and repository from link
 	prNumber := ""
 	targetRepo := ""
@@ -413,7 +442,7 @@ func simplifyPullRequest(item *gofeed.Item) *gofeed.Item {
 	}
 
 	// Create simplified title
-	title := fmt.Sprintf("cdzombak opened PR #%s in %s", prNumber, targetRepo)
+	title := fmt.Sprintf("%s opened PR #%s in %s", username, prNumber, targetRepo)
 	if prTitle != "" {
 		title += ": " + prTitle
 	}
@@ -444,13 +473,13 @@ func simplifyPullRequest(item *gofeed.Item) *gofeed.Item {
 }
 
 // simplifyFork creates a clean fork entry
-func simplifyFork(item *gofeed.Item) *gofeed.Item {
+func simplifyFork(item *gofeed.Item, username string) *gofeed.Item {
 	// Extract source and target repos from title or content
 	sourceRepo := ""
 	targetRepo := ""
 
 	if item.Title != "" {
-		// Example: "cdzombak forked cdzombak/gofeed from mmcdole/gofeed"
+		// Example: "username forked username/gofeed from mmcdole/gofeed"
 		forkRegex := regexp.MustCompile(`forked ([^/]+/[^/\s]+) from ([^/]+/[^/\s]+)`)
 		matches := forkRegex.FindStringSubmatch(item.Title)
 		if len(matches) > 2 {
@@ -459,7 +488,7 @@ func simplifyFork(item *gofeed.Item) *gofeed.Item {
 		}
 	}
 
-	title := fmt.Sprintf("cdzombak forked %s", sourceRepo)
+	title := fmt.Sprintf("%s forked %s", username, sourceRepo)
 
 	htmlContent := `<div style='margin-bottom: 12px;'>`
 	htmlContent += fmt.Sprintf(`<a href='%s'>View fork: %s</a>`, item.Link, targetRepo)
@@ -480,7 +509,7 @@ func simplifyFork(item *gofeed.Item) *gofeed.Item {
 }
 
 // simplifyBranchCreate creates a clean branch creation entry
-func simplifyBranchCreate(item *gofeed.Item) *gofeed.Item {
+func simplifyBranchCreate(item *gofeed.Item, username string) *gofeed.Item {
 	// Extract branch name and repository
 	branchName := ""
 	repoName := ""
@@ -504,7 +533,7 @@ func simplifyBranchCreate(item *gofeed.Item) *gofeed.Item {
 		}
 	}
 
-	title := fmt.Sprintf("cdzombak created branch %s", branchName)
+	title := fmt.Sprintf("%s created branch %s", username, branchName)
 	if repoName != "" {
 		title += fmt.Sprintf(" in %s", repoName)
 	}
@@ -528,8 +557,8 @@ func simplifyBranchCreate(item *gofeed.Item) *gofeed.Item {
 }
 
 // simplifyBranchDelete creates a clean branch deletion entry
-func simplifyBranchDelete(item *gofeed.Item) *gofeed.Item {
-	title := "cdzombak deleted a branch"
+func simplifyBranchDelete(item *gofeed.Item, username string) *gofeed.Item {
+	title := fmt.Sprintf("%s deleted a branch", username)
 
 	htmlContent := `<div style='margin-bottom: 12px;'>Branch deleted</div>`
 
@@ -548,13 +577,13 @@ func simplifyBranchDelete(item *gofeed.Item) *gofeed.Item {
 }
 
 // simplifyTagDelete creates a clean tag deletion entry
-func simplifyTagDelete(item *gofeed.Item) *gofeed.Item {
+func simplifyTagDelete(item *gofeed.Item, username string) *gofeed.Item {
 	tagName := ""
 	repoName := ""
 
 	// Try to extract from title first
 	if item.Title != "" {
-		titleRegex := regexp.MustCompile(`cdzombak deleted (?:tag )?(.*?)(?:\s|$)`)
+		titleRegex := regexp.MustCompile(regexp.QuoteMeta(username) + ` deleted (?:tag )?(.*?)(?:\s|$)`)
 		matches := titleRegex.FindStringSubmatch(item.Title)
 		if len(matches) > 1 {
 			tagName = strings.TrimSpace(matches[1])
@@ -575,7 +604,7 @@ func simplifyTagDelete(item *gofeed.Item) *gofeed.Item {
 
 	// Extract repo from link if not found
 	if repoName == "" && item.Link != "" {
-		repoRegex := regexp.MustCompile(`github\.com/cdzombak/([^/]+)`)
+		repoRegex := regexp.MustCompile(`github\.com/` + regexp.QuoteMeta(username) + `/([^/]+)`)
 		matches := repoRegex.FindStringSubmatch(item.Link)
 		if len(matches) > 1 {
 			repoName = matches[1]
@@ -586,7 +615,7 @@ func simplifyTagDelete(item *gofeed.Item) *gofeed.Item {
 		tagName = "tag"
 	}
 
-	title := fmt.Sprintf("cdzombak deleted tag %s", tagName)
+	title := fmt.Sprintf("%s deleted tag %s", username, tagName)
 	if repoName != "" {
 		title += fmt.Sprintf(" in %s", repoName)
 	}
@@ -613,7 +642,7 @@ func simplifyTagDelete(item *gofeed.Item) *gofeed.Item {
 }
 
 // simplifyOtherActivity creates a basic simplified version for unrecognized activities
-func simplifyOtherActivity(item *gofeed.Item) *gofeed.Item {
+func simplifyOtherActivity(item *gofeed.Item, username string) *gofeed.Item {
 	// Keep the original title but create simpler content
 	htmlContent := `<div style='margin-bottom: 12px;'>`
 	if item.Link != "" {

@@ -250,6 +250,75 @@ func TestExtractCommitsFromContent(t *testing.T) {
 	}
 }
 
+func TestExtractUsername(t *testing.T) {
+	tests := []struct {
+		name     string
+		feed     *gofeed.Feed
+		expected string
+	}{
+		{
+			name: "Extract from feed link with .atom",
+			feed: &gofeed.Feed{
+				Link: "https://github.com/testuser.atom",
+			},
+			expected: "testuser",
+		},
+		{
+			name: "Extract from feed link without .atom",
+			feed: &gofeed.Feed{
+				Link: "https://github.com/anotheruser",
+			},
+			expected: "anotheruser",
+		},
+		{
+			name: "Extract from item link when feed link missing",
+			feed: &gofeed.Feed{
+				Link: "",
+				Items: []*gofeed.Item{
+					{Link: "https://github.com/itemuser/repo/commit/abc123"},
+				},
+			},
+			expected: "itemuser",
+		},
+		{
+			name: "Extract from second item when first is invalid",
+			feed: &gofeed.Feed{
+				Items: []*gofeed.Item{
+					{Link: "https://example.com/invalid"},
+					{Link: "https://github.com/validuser/repo/pull/1"},
+				},
+			},
+			expected: "validuser",
+		},
+		{
+			name: "Fallback when no valid links",
+			feed: &gofeed.Feed{
+				Link: "https://example.com/invalid",
+				Items: []*gofeed.Item{
+					{Link: "https://example.com/also-invalid"},
+				},
+			},
+			expected: "user",
+		},
+		{
+			name: "Extract cdzombak from feed",
+			feed: &gofeed.Feed{
+				Link: "https://github.com/cdzombak.atom",
+			},
+			expected: "cdzombak",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractUsername(tt.feed)
+			if result != tt.expected {
+				t.Errorf("extractUsername() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestDetectActivityType(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -380,7 +449,7 @@ func TestSimplifyPullRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := simplifyPullRequest(tt.item)
+			result := simplifyPullRequest(tt.item, "cdzombak")
 
 			if result.Title != tt.expected.title {
 				t.Errorf("simplifyPullRequest().Title = %v, want %v", result.Title, tt.expected.title)
@@ -408,7 +477,7 @@ func TestSimplifyFork(t *testing.T) {
 		Link:    "https://github.com/cdzombak/gofeed",
 	}
 
-	result := simplifyFork(item)
+	result := simplifyFork(item, "cdzombak")
 
 	expectedTitle := "cdzombak forked mmcdole/gofeed"
 	if result.Title != expectedTitle {
@@ -431,7 +500,7 @@ func TestSimplifyBranchCreate(t *testing.T) {
 		Link:    "https://github.com/cdzombak/gofeed/tree/refs/heads/cdz/feed-creation",
 	}
 
-	result := simplifyBranchCreate(item)
+	result := simplifyBranchCreate(item, "cdzombak")
 
 	expectedTitle := "cdzombak created branch cdz/feed-creation in cdzombak/gofeed"
 	if result.Title != expectedTitle {
@@ -450,7 +519,7 @@ func TestSimplifyTagDelete(t *testing.T) {
 		Link:    "https://github.com/cdzombak/homebrew-gomod/compare/2b377a2203...0000000000",
 	}
 
-	result := simplifyTagDelete(item)
+	result := simplifyTagDelete(item, "cdzombak")
 
 	expectedTitle := "cdzombak deleted tag refs/tags/v0.0.6 in homebrew-gomod"
 	if result.Title != expectedTitle {
@@ -510,7 +579,7 @@ func TestExtractBranchActivity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractBranchActivity(tt.item)
+			result := extractBranchActivity(tt.item, "cdzombak")
 
 			if tt.expected == nil {
 				if result != nil {
@@ -575,7 +644,7 @@ func TestCreateConsolidatedBranchItem(t *testing.T) {
 		CompareLink: "https://github.com/cdzombak/dotfiles/compare/b19a1b604e...8e9b024bed",
 	}
 
-	result := createConsolidatedBranchItem(activity)
+	result := createConsolidatedBranchItem(activity, "cdzombak")
 
 	expectedTitle := "cdzombak pushed 2 commits to dotfiles/master"
 	if result.Title != expectedTitle {
@@ -612,7 +681,7 @@ func TestCreateConsolidatedBranchItemNoCommits(t *testing.T) {
 		Commits: []Commit{},
 	}
 
-	result := createConsolidatedBranchItem(activity)
+	result := createConsolidatedBranchItem(activity, "cdzombak")
 
 	if result != nil {
 		t.Errorf("createConsolidatedBranchItem() with no commits = %v, want nil", result)
@@ -856,6 +925,155 @@ func TestBranchActivityMerging(t *testing.T) {
 	// Should use the latest timestamp
 	if item.PublishedParsed.Before(publishedTime2) {
 		t.Error("merged branch should use latest timestamp")
+	}
+}
+
+// Test that the code works for different GitHub usernames
+func TestDifferentUsernames(t *testing.T) {
+	testUsers := []string{"alice", "bob123", "cool-user", "testuser"}
+
+	for _, username := range testUsers {
+		t.Run("username_"+username, func(t *testing.T) {
+			// Test with custom HTML content for this user
+			pushContent := strings.ReplaceAll(pushHTML, "cdzombak", username)
+			prContent := strings.ReplaceAll(pullRequestHTML, "cdzombak", username)
+
+			publishedTime, _ := time.Parse(time.RFC3339, "2025-09-15T01:28:02Z")
+
+			// Create feed for this user
+			inputFeed := &gofeed.Feed{
+				Title: "GitHub Activities for " + username,
+				Link:  "https://github.com/" + username + ".atom",
+				Items: []*gofeed.Item{
+					{
+						Title:           username + " pushed dotfiles",
+						Content:         pushContent,
+						Link:            "https://github.com/" + username + "/dotfiles/compare/b19a1b604e...8e9b024bed",
+						PublishedParsed: &publishedTime,
+						GUID:            "push-1",
+					},
+					{
+						Title:           username + " opened a pull request in gofeed",
+						Content:         prContent,
+						Link:            "https://github.com/mmcdole/gofeed/pull/264",
+						PublishedParsed: &publishedTime,
+						GUID:            "pr-1",
+					},
+				},
+			}
+
+			result := consolidateCommits(inputFeed)
+
+			// Verify username extraction worked
+			extractedUsername := extractUsername(inputFeed)
+			if extractedUsername != username {
+				t.Errorf("extractUsername() = %v, want %v", extractedUsername, username)
+			}
+
+			// Should have 2 items: 1 consolidated push + 1 simplified PR
+			if len(result.Items) != 2 {
+				t.Errorf("consolidateCommits() items count = %d, want 2", len(result.Items))
+				return
+			}
+
+			// Find consolidated push entry
+			var pushItem *gofeed.Item
+			for _, item := range result.Items {
+				if strings.Contains(item.Title, "pushed") && strings.Contains(item.Title, "dotfiles") {
+					pushItem = item
+					break
+				}
+			}
+
+			if pushItem == nil {
+				t.Fatal("missing consolidated push entry for " + username)
+			}
+
+			// Verify title uses correct username
+			expectedPushTitle := username + " pushed 2 commits to dotfiles/master"
+			if pushItem.Title != expectedPushTitle {
+				t.Errorf("push title = %v, want %v", pushItem.Title, expectedPushTitle)
+			}
+
+			// Find simplified PR entry
+			var prItem *gofeed.Item
+			for _, item := range result.Items {
+				if strings.Contains(item.Title, "opened PR") {
+					prItem = item
+					break
+				}
+			}
+
+			if prItem == nil {
+				t.Fatal("missing simplified PR entry for " + username)
+			}
+
+			// Verify PR title uses correct username
+			expectedPRTitle := username + " opened PR #264 in mmcdole/gofeed: Allow outputting RSS, Atom, and JSON feeds"
+			if prItem.Title != expectedPRTitle {
+				t.Errorf("PR title = %v, want %v", prItem.Title, expectedPRTitle)
+			}
+		})
+	}
+}
+
+// Test individual simplify functions with different usernames
+func TestSimplifyFunctionsWithDifferentUsers(t *testing.T) {
+	testUsers := []string{"alice", "bob123", "test-user"}
+
+	for _, username := range testUsers {
+		t.Run("user_"+username, func(t *testing.T) {
+			// Test pull request simplification
+			prItem := &gofeed.Item{
+				Title:   username + " opened a pull request in test/repo",
+				Content: `<span class="f4 lh-condensed text-bold color-fg-default"><a class="color-fg-default text-bold" href="/test/repo/pull/123">Test PR Title</a></span>`,
+				Link:    "https://github.com/test/repo/pull/123",
+			}
+
+			result := simplifyPullRequest(prItem, username)
+			expectedTitle := username + " opened PR #123 in test/repo: Test PR Title"
+			if result.Title != expectedTitle {
+				t.Errorf("simplifyPullRequest title = %v, want %v", result.Title, expectedTitle)
+			}
+
+			// Test fork simplification
+			forkItem := &gofeed.Item{
+				Title: username + " forked " + username + "/test from original/test",
+				Link:  "https://github.com/" + username + "/test",
+			}
+
+			forkResult := simplifyFork(forkItem, username)
+			expectedForkTitle := username + " forked original/test"
+			if forkResult.Title != expectedForkTitle {
+				t.Errorf("simplifyFork title = %v, want %v", forkResult.Title, expectedForkTitle)
+			}
+
+			// Test branch creation
+			branchItem := &gofeed.Item{
+				Title: username + " created a branch",
+				Content: `<a class="css-truncate css-truncate-target branch-name" title="refs/heads/feature" href="https://github.com/` + username + `/repo/tree/refs/heads/feature">refs/heads/feature</a> in <a href="/` + username + `/repo">` + username + `/repo</a>`,
+				Link:  "https://github.com/" + username + "/repo/tree/refs/heads/feature",
+			}
+
+			branchResult := simplifyBranchCreate(branchItem, username)
+			expectedBranchTitle := username + " created branch feature in " + username + "/repo"
+			if branchResult.Title != expectedBranchTitle {
+				t.Errorf("simplifyBranchCreate title = %v, want %v", branchResult.Title, expectedBranchTitle)
+			}
+
+			// Test tag deletion
+			tagItem := &gofeed.Item{
+				Title:   username + " deleted tag refs/tags/v1.0.0",
+				Content: `<span class="branch-name">refs/tags/v1.0.0</span> in <a href="/` + username + `/repo">` + username + `/repo</a>`,
+				Link:    "https://github.com/" + username + "/repo/compare/abc123...000000",
+			}
+
+			tagResult := simplifyTagDelete(tagItem, username)
+			expectedTagTitle := username + " deleted tag refs/tags/v1.0.0 in " + username + "/repo"
+			if tagResult.Title != expectedTagTitle {
+				t.Errorf("simplifyTagDelete title = %v, want %v", tagResult.Title, expectedTagTitle)
+			}
+		})
 	}
 }
 
