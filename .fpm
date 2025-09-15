@@ -1,0 +1,6 @@
+-s dir
+--name ghfeed
+--description "GitHub activity feed consolidator"
+--url "https://github.com/cdzombak/ghfeed"
+--maintainer "Chris Dzombak <https://www.dzombak.com>"
+--license GPL3
