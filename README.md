@@ -11,11 +11,10 @@ A GitHub activity feed consolidator that transforms verbose GitHub Atom feeds in
 
 ### What It Does
 
-**Before**: 20+ individual "pushed" entries cluttering your feed
-**After**: Clean consolidated entries like "cdzombak pushed 15 commits to dotfiles/master"
-
-**Before**: Verbose GitHub HTML with excessive markup
-**After**: Simple entries like "cdzombak opened PR #264 in mmcdole/gofeed"
+| Before | After |
+|--------|-------|
+| 20+ individual "pushed" entries cluttering your feed | Clean consolidated entries like "cdzombak pushed 15 commits to dotfiles/master" |
+| Verbose GitHub HTML with excessive markup | Simple entries like "cdzombak opened PR #264 in mmcdole/gofeed" |
 
 The program processes these GitHub activities:
 - Push/commit consolidation by repository and branch
