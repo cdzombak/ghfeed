@@ -28,8 +28,6 @@ The program processes these GitHub activities:
 Generates a clean Atom/RSS/JSON feed with:
 - Consolidated commit entries showing individual commit messages and links
 - Simplified non-commit activities with essential information preserved
-- Proper chronological ordering
-- Valid Atom XML format
 
 Perfect for making GitHub activity feeds more readable in feed readers.
 
