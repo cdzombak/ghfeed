@@ -237,15 +237,27 @@ func consolidateCommits(feed *gofeed.Feed, customTitle string, consolidatePushes
 		}
 	}
 
-	// Sort items by published date (most recent first)
+	// Sort items by updated date (most recent first), falling back to published date
 	sort.Slice(newFeed.Items, func(i, j int) bool {
-		if newFeed.Items[i].PublishedParsed == nil {
+		// Get effective date for item i (updated or published)
+		dateI := newFeed.Items[i].UpdatedParsed
+		if dateI == nil {
+			dateI = newFeed.Items[i].PublishedParsed
+		}
+		if dateI == nil {
 			return false
 		}
-		if newFeed.Items[j].PublishedParsed == nil {
+
+		// Get effective date for item j (updated or published)
+		dateJ := newFeed.Items[j].UpdatedParsed
+		if dateJ == nil {
+			dateJ = newFeed.Items[j].PublishedParsed
+		}
+		if dateJ == nil {
 			return true
 		}
-		return newFeed.Items[i].PublishedParsed.After(*newFeed.Items[j].PublishedParsed)
+
+		return dateI.After(*dateJ)
 	})
 
 	return newFeed
