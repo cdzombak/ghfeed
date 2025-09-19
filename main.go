@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -402,6 +403,9 @@ func extractCommitsFromContent(content string) []Commit {
 		}
 	}
 
+	// Reverse the order to make commits newest-first (GitHub Atom feeds have commits oldest-to-newest)
+	slices.Reverse(commits)
+
 	return commits
 }
 
@@ -418,7 +422,7 @@ func generateComparisonLink(activity *BranchActivity, username string) string {
 
 	// For multiple commits, create comparison link from oldest to newest
 	// GitHub compares show oldest..newest
-	oldestCommit := activity.Commits[len(activity.Commits)-1] // commits are typically in newest-first order
+	oldestCommit := activity.Commits[len(activity.Commits)-1] // commits are now in newest-first order
 	newestCommit := activity.Commits[0]
 
 	// Extract commit hashes from their links
@@ -429,7 +433,7 @@ func generateComparisonLink(activity *BranchActivity, username string) string {
 		return fmt.Sprintf("https://github.com/%s/%s/compare/%s^...%s", username, activity.Repo, oldestHash, newestHash)
 	}
 
-	// Fallback to newest commit if we can't create comparison
+	// Fallback to newest commit (first in array) if we can't create comparison
 	return newestCommit.Link
 }
 

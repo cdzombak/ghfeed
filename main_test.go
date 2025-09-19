@@ -188,14 +188,14 @@ func TestExtractCommitsFromContent(t *testing.T) {
 			content: pushHTML,
 			expected: []Commit{
 				{
-					Hash:    "8e9b024",
-					Message: "remove Instapaper Save app",
-					Link:    "https://github.com/cdzombak/dotfiles/commit/8e9b024bede1064de870417f7e3f7aa876fa3b47",
-				},
-				{
 					Hash:    "b19a1b6",
 					Message: "fix Red Eye install",
 					Link:    "https://github.com/cdzombak/dotfiles/commit/b19a1b604e77908604438ab33529c6a6a9d7f9d1",
+				},
+				{
+					Hash:    "8e9b024",
+					Message: "remove Instapaper Save app",
+					Link:    "https://github.com/cdzombak/dotfiles/commit/8e9b024bede1064de870417f7e3f7aa876fa3b47",
 				},
 			},
 		},
@@ -604,14 +604,14 @@ func TestExtractBranchActivity(t *testing.T) {
 				Branch: "master",
 				Commits: []Commit{
 					{
-						Hash:    "8e9b024",
-						Message: "remove Instapaper Save app",
-						Link:    "https://github.com/cdzombak/dotfiles/commit/8e9b024bede1064de870417f7e3f7aa876fa3b47",
-					},
-					{
 						Hash:    "b19a1b6",
 						Message: "fix Red Eye install",
 						Link:    "https://github.com/cdzombak/dotfiles/commit/b19a1b604e77908604438ab33529c6a6a9d7f9d1",
+					},
+					{
+						Hash:    "8e9b024",
+						Message: "remove Instapaper Save app",
+						Link:    "https://github.com/cdzombak/dotfiles/commit/8e9b024bede1064de870417f7e3f7aa876fa3b47",
 					},
 				},
 				LatestTime:  &publishedTime,
@@ -1445,6 +1445,110 @@ func TestConsolidateCommitsWithConsolidationEnabled(t *testing.T) {
 	// Should have consolidated GUID format
 	if !strings.HasPrefix(item.GUID, "consolidated-") {
 		t.Errorf("Item GUID = %v, should start with 'consolidated-'", item.GUID)
+	}
+}
+
+func TestCommitOrderingWithConsolidationDisabled(t *testing.T) {
+	publishedTime1, _ := time.Parse(time.RFC3339, "2025-09-15T01:28:02Z")
+	publishedTime2, _ := time.Parse(time.RFC3339, "2025-09-15T01:30:00Z")
+
+	// Test that commits within individual push items are ordered newest-first
+	// when consolidation is disabled (each push becomes its own feed item)
+	items := []*gofeed.Item{
+		{
+			Title:           "cdzombak pushed dotfiles",
+			Content:         pushHTML,
+			Link:            "https://github.com/cdzombak/dotfiles/compare/b19a1b604e...8e9b024bed",
+			PublishedParsed: &publishedTime1,
+		},
+		{
+			Title:           "cdzombak pushed another-repo",
+			Content:         `<code><a href="/cdzombak/another-repo/commit/abc123def456" rel="noreferrer">abc123d</a></code>
+			<div class="dashboard-break-word lh-condensed">
+				<blockquote>older commit message</blockquote>
+			</div>
+			<code><a href="/cdzombak/another-repo/commit/def456abc789" rel="noreferrer">def456a</a></code>
+			<div class="dashboard-break-word lh-condensed">
+				<blockquote>newer commit message</blockquote>
+			</div>`,
+			Link:            "https://github.com/cdzombak/another-repo/compare/abc123def456...def456abc789",
+			PublishedParsed: &publishedTime2,
+		},
+	}
+
+	username := "cdzombak"
+
+	var result []*gofeed.Item
+	var activities []*BranchActivity
+
+	for _, item := range items {
+		if isCommitOrPush(item.Title) {
+			activity := extractBranchActivity(item, username)
+			activities = append(activities, activity)
+			result = append(result, createIndividualPushItem(activity, username))
+		}
+	}
+
+	if len(result) != 2 {
+		t.Fatalf("Expected 2 items, got %d", len(result))
+	}
+
+	// Verify first push item has commits in newest-first order
+	activity1 := activities[0]
+	if len(activity1.Commits) != 2 {
+		t.Fatalf("Expected 2 commits in first item, got %d", len(activity1.Commits))
+	}
+	// Based on our test data, b19a1b6 should be first (newest) and 8e9b024 should be second (oldest)
+	if activity1.Commits[0].Hash != "b19a1b6" {
+		t.Errorf("Expected first commit to be b19a1b6 (newest), got %s", activity1.Commits[0].Hash)
+	}
+	if activity1.Commits[1].Hash != "8e9b024" {
+		t.Errorf("Expected second commit to be 8e9b024 (oldest), got %s", activity1.Commits[1].Hash)
+	}
+
+	// Verify second push item has commits in newest-first order
+	activity2 := activities[1]
+	if len(activity2.Commits) != 2 {
+		t.Fatalf("Expected 2 commits in second item, got %d", len(activity2.Commits))
+	}
+	// def456a should be first (newest) and abc123d should be second (oldest)
+	if activity2.Commits[0].Hash != "def456a" {
+		t.Errorf("Expected first commit to be def456a (newest), got %s", activity2.Commits[0].Hash)
+	}
+	if activity2.Commits[1].Hash != "abc123d" {
+		t.Errorf("Expected second commit to be abc123d (oldest), got %s", activity2.Commits[1].Hash)
+	}
+
+	// Verify that commits are displayed in newest-first order in the HTML content
+	// First item should show b19a1b6 (newer) before 8e9b024 (older)
+	firstContent := result[0].Content
+	b19Pos := strings.Index(firstContent, ">b19a1b6<")
+	e9bPos := strings.Index(firstContent, ">8e9b024<")
+	if b19Pos == -1 || e9bPos == -1 {
+		t.Errorf("Could not find both commit hashes in first item content")
+	} else if b19Pos > e9bPos {
+		t.Errorf("Commits not in newest-first order: b19a1b6 at pos %d, 8e9b024 at pos %d", b19Pos, e9bPos)
+	}
+
+	// Second item should show def456a (newer) before abc123d (older)
+	secondContent := result[1].Content
+	defPos := strings.Index(secondContent, ">def456a<")
+	abcPos := strings.Index(secondContent, ">abc123d<")
+	if defPos == -1 || abcPos == -1 {
+		t.Errorf("Could not find both commit hashes in second item content")
+	} else if defPos > abcPos {
+		t.Errorf("Commits not in newest-first order: def456a at pos %d, abc123d at pos %d", defPos, abcPos)
+	}
+
+	// Verify the comparison links use the original format from the feed item
+	expectedLink1 := "https://github.com/cdzombak/dotfiles/compare/b19a1b604e...8e9b024bed"
+	if !strings.Contains(result[0].Content, expectedLink1) {
+		t.Errorf("Expected comparison link %s not found in first item content", expectedLink1)
+	}
+
+	expectedLink2 := "https://github.com/cdzombak/another-repo/compare/abc123def456...def456abc789"
+	if !strings.Contains(result[1].Content, expectedLink2) {
+		t.Errorf("Expected comparison link %s not found in second item content", expectedLink2)
 	}
 }
 
