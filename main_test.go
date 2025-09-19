@@ -406,8 +406,8 @@ func TestSimplifyPullRequest(t *testing.T) {
 		name     string
 		item     *gofeed.Item
 		expected struct {
-			title       string
-			containsURL string
+			title        string
+			containsURL  string
 			containsText string
 		}
 	}{
@@ -419,12 +419,12 @@ func TestSimplifyPullRequest(t *testing.T) {
 				Link:    "https://github.com/mmcdole/gofeed/pull/264",
 			},
 			expected: struct {
-				title       string
-				containsURL string
+				title        string
+				containsURL  string
 				containsText string
 			}{
-				title:       "cdzombak opened PR #264 in mmcdole/gofeed: Allow outputting RSS, Atom, and JSON feeds",
-				containsURL: "https://github.com/mmcdole/gofeed/pull/264",
+				title:        "cdzombak opened PR #264 in mmcdole/gofeed: Allow outputting RSS, Atom, and JSON feeds",
+				containsURL:  "https://github.com/mmcdole/gofeed/pull/264",
 				containsText: "+3,415 -146",
 			},
 		},
@@ -436,12 +436,12 @@ func TestSimplifyPullRequest(t *testing.T) {
 				Link:    "https://github.com/test/repo/pull/1",
 			},
 			expected: struct {
-				title       string
-				containsURL string
+				title        string
+				containsURL  string
 				containsText string
 			}{
-				title:       "cdzombak opened PR #1 in test/repo: Test PR",
-				containsURL: "https://github.com/test/repo/pull/1",
+				title:        "cdzombak opened PR #1 in test/repo: Test PR",
+				containsURL:  "https://github.com/test/repo/pull/1",
 				containsText: "Test PR",
 			},
 		},
@@ -517,8 +517,8 @@ func TestSimplifyTagDelete(t *testing.T) {
 		name     string
 		item     *gofeed.Item
 		expected struct {
-			title    string
-			content  string
+			title   string
+			content string
 		}
 	}{
 		{
@@ -848,7 +848,7 @@ func TestConsolidateCommitsIntegration(t *testing.T) {
 		},
 	}
 
-	result := consolidateCommits(inputFeed, "")
+	result := consolidateCommits(inputFeed, "", true)
 
 	// Verify feed metadata is preserved
 	if result.Title != inputFeed.Title {
@@ -889,12 +889,12 @@ func TestConsolidateCommitsIntegration(t *testing.T) {
 
 	// Verify commits are included in content
 	if !strings.Contains(dotfilesItem.Content, "8e9b024") ||
-	   !strings.Contains(dotfilesItem.Content, "remove Instapaper Save app") {
+		!strings.Contains(dotfilesItem.Content, "remove Instapaper Save app") {
 		t.Error("consolidated dotfiles missing first commit")
 	}
 
 	if !strings.Contains(dotfilesItem.Content, "b19a1b6") ||
-	   !strings.Contains(dotfilesItem.Content, "fix Red Eye install") {
+		!strings.Contains(dotfilesItem.Content, "fix Red Eye install") {
 		t.Error("consolidated dotfiles missing second commit")
 	}
 
@@ -979,7 +979,7 @@ func TestBranchActivityMerging(t *testing.T) {
 		},
 	}
 
-	result := consolidateCommits(inputFeed, "")
+	result := consolidateCommits(inputFeed, "", true)
 
 	// Should have 1 consolidated item (both pushes merged)
 	if len(result.Items) != 1 {
@@ -1044,7 +1044,7 @@ func TestDifferentUsernames(t *testing.T) {
 				},
 			}
 
-			result := consolidateCommits(inputFeed, "")
+			result := consolidateCommits(inputFeed, "", true)
 
 			// Verify username extraction worked
 			extractedUsername := extractUsername(inputFeed)
@@ -1132,9 +1132,9 @@ func TestSimplifyFunctionsWithDifferentUsers(t *testing.T) {
 
 			// Test branch creation
 			branchItem := &gofeed.Item{
-				Title: username + " created a branch",
+				Title:   username + " created a branch",
 				Content: `<a class="css-truncate css-truncate-target branch-name" title="refs/heads/feature" href="https://github.com/` + username + `/repo/tree/refs/heads/feature">refs/heads/feature</a> in <a href="/` + username + `/repo">` + username + `/repo</a>`,
-				Link:  "https://github.com/" + username + "/repo/tree/refs/heads/feature",
+				Link:    "https://github.com/" + username + "/repo/tree/refs/heads/feature",
 			}
 
 			branchResult := simplifyBranchCreate(branchItem, username)
@@ -1335,5 +1335,161 @@ func TestGenerateComparisonLink(t *testing.T) {
 				t.Errorf("generateComparisonLink() = %v, want %v", result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestConsolidateCommitsWithConsolidationDisabled(t *testing.T) {
+	publishedTime1, _ := time.Parse(time.RFC3339, "2025-09-15T01:28:02Z")
+	publishedTime2, _ := time.Parse(time.RFC3339, "2025-09-14T23:03:04Z")
+
+	// Create a mock feed with multiple pushes to the same repo/branch
+	inputFeed := &gofeed.Feed{
+		Title:       "GitHub Public Timeline Feed",
+		Description: "GitHub activities for cdzombak",
+		Items: []*gofeed.Item{
+			// First push to dotfiles/master
+			{
+				Title:           "cdzombak pushed dotfiles",
+				Content:         pushHTML,
+				Link:            "https://github.com/cdzombak/dotfiles/compare/b19a1b604e...8e9b024bed",
+				PublishedParsed: &publishedTime1,
+				GUID:            "push-dotfiles-1",
+			},
+			// Second push to dotfiles/master (would normally be consolidated)
+			{
+				Title: "cdzombak pushed dotfiles",
+				Content: `<div class="git-push js-feed-item-view"><div class="body">
+				<a class="branch-name" href="/cdzombak/dotfiles/tree/master" rel="noreferrer">master</a>
+				<code><a href="/cdzombak/dotfiles/commit/abc123def456" rel="noreferrer">abc123d</a></code>
+				<div class="dashboard-break-word lh-condensed">
+					<blockquote>another commit message</blockquote>
+				</div>
+				</div></div>`,
+				Link:            "https://github.com/cdzombak/dotfiles/compare/abc123def456...def456abc123",
+				PublishedParsed: &publishedTime2,
+				GUID:            "push-dotfiles-2",
+			},
+		},
+	}
+
+	// Test with consolidation disabled
+	result := consolidateCommits(inputFeed, "", false)
+
+	// Should have 2 separate push items (not consolidated)
+	if len(result.Items) != 2 {
+		t.Errorf("consolidateCommits(consolidate=false) items count = %d, want 2", len(result.Items))
+		for i, item := range result.Items {
+			t.Logf("Item %d: %s", i, item.Title)
+		}
+		return
+	}
+
+	for i, item := range result.Items {
+		if !strings.Contains(item.Title, "pushed") || !strings.Contains(item.Title, "dotfiles/master") {
+			t.Errorf("Item %d title = %v, should be individual push entry", i, item.Title)
+		}
+
+		// Should have individual GUID format
+		if !strings.HasPrefix(item.GUID, "individual-") {
+			t.Errorf("Item %d GUID = %v, should start with 'individual-'", i, item.GUID)
+		}
+	}
+}
+
+func TestConsolidateCommitsWithConsolidationEnabled(t *testing.T) {
+	publishedTime1, _ := time.Parse(time.RFC3339, "2025-09-15T01:28:02Z")
+	publishedTime2, _ := time.Parse(time.RFC3339, "2025-09-14T23:03:04Z")
+
+	inputFeed := &gofeed.Feed{
+		Title:       "GitHub Public Timeline Feed",
+		Description: "GitHub activities for cdzombak",
+		Items: []*gofeed.Item{
+			{
+				Title:           "cdzombak pushed dotfiles",
+				Content:         pushHTML,
+				Link:            "https://github.com/cdzombak/dotfiles/compare/b19a1b604e...8e9b024bed",
+				PublishedParsed: &publishedTime1,
+				GUID:            "push-dotfiles-1",
+			},
+			{
+				Title: "cdzombak pushed dotfiles",
+				Content: `<div class="git-push js-feed-item-view"><div class="body">
+				<a class="branch-name" href="/cdzombak/dotfiles/tree/master" rel="noreferrer">master</a>
+				<code><a href="/cdzombak/dotfiles/commit/abc123def456" rel="noreferrer">abc123d</a></code>
+				<div class="dashboard-break-word lh-condensed">
+					<blockquote>another commit message</blockquote>
+				</div>
+				</div></div>`,
+				Link:            "https://github.com/cdzombak/dotfiles/compare/abc123def456...def456abc123",
+				PublishedParsed: &publishedTime2,
+				GUID:            "push-dotfiles-2",
+			},
+		},
+	}
+
+	// Test with consolidation enabled (default behavior)
+	result := consolidateCommits(inputFeed, "", true)
+
+	// Should have 1 consolidated item
+	if len(result.Items) != 1 {
+		t.Errorf("consolidateCommits(consolidate=true) items count = %d, want 1", len(result.Items))
+		return
+	}
+
+	// Should be consolidated entry
+	item := result.Items[0]
+	if !strings.Contains(item.Title, "pushed") || !strings.Contains(item.Title, "commits to dotfiles/master") {
+		t.Errorf("Item title = %v, should be consolidated push entry", item.Title)
+	}
+
+	// Should have consolidated GUID format
+	if !strings.HasPrefix(item.GUID, "consolidated-") {
+		t.Errorf("Item GUID = %v, should start with 'consolidated-'", item.GUID)
+	}
+}
+
+func TestCreateIndividualPushItem(t *testing.T) {
+	publishedTime, _ := time.Parse(time.RFC3339, "2025-09-15T01:28:02Z")
+
+	activity := &BranchActivity{
+		Repo:   "dotfiles",
+		Branch: "master",
+		Commits: []Commit{
+			{Hash: "8e9b024", Message: "remove Instapaper Save app", Link: "https://github.com/cdzombak/dotfiles/commit/8e9b024"},
+			{Hash: "b19a1b6", Message: "fix Red Eye install", Link: "https://github.com/cdzombak/dotfiles/commit/b19a1b6"},
+		},
+		LatestTime:  &publishedTime,
+		CompareLink: "https://github.com/cdzombak/dotfiles/compare/b19a1b6^...8e9b024",
+	}
+
+	result := createIndividualPushItem(activity, "cdzombak")
+
+	if result == nil {
+		t.Fatal("createIndividualPushItem() returned nil")
+	}
+
+	expectedTitle := "cdzombak pushed 2 commits to dotfiles/master"
+	if result.Title != expectedTitle {
+		t.Errorf("createIndividualPushItem() title = %v, want %v", result.Title, expectedTitle)
+	}
+
+	// Should contain both commits in content
+	if !strings.Contains(result.Content, "8e9b024") || !strings.Contains(result.Content, "remove Instapaper Save app") {
+		t.Error("createIndividualPushItem() missing first commit in content")
+	}
+
+	if !strings.Contains(result.Content, "b19a1b6") || !strings.Contains(result.Content, "fix Red Eye install") {
+		t.Error("createIndividualPushItem() missing second commit in content")
+	}
+
+	// Should have compare link
+	if result.Link != activity.CompareLink {
+		t.Errorf("createIndividualPushItem() link = %v, want %v", result.Link, activity.CompareLink)
+	}
+
+	// Should have individual GUID format
+	expectedGUIDPrefix := "individual-dotfiles-master-"
+	if !strings.HasPrefix(result.GUID, expectedGUIDPrefix) {
+		t.Errorf("createIndividualPushItem() GUID = %v, should start with %v", result.GUID, expectedGUIDPrefix)
 	}
 }
