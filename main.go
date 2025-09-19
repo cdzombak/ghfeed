@@ -50,6 +50,7 @@ func main() {
 	var feedURL string
 	var customTitle string
 	var format = "atom" // default format
+	var consolidatePushes = true // default to true for backward compatibility
 
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
@@ -69,6 +70,20 @@ func main() {
 			format = args[i+1]
 			if format != "atom" && format != "rss" && format != "json" {
 				fmt.Fprintf(os.Stderr, "Error: format must be 'atom', 'rss', or 'json'\n")
+				os.Exit(1)
+			}
+			i++ // Skip the next argument since we consumed it
+		} else if arg == "-consolidate-pushes" {
+			if i+1 >= len(args) {
+				fmt.Fprintf(os.Stderr, "Error: -consolidate-pushes flag requires a boolean argument (true or false)\n")
+				os.Exit(1)
+			}
+			if args[i+1] == "true" {
+				consolidatePushes = true
+			} else if args[i+1] == "false" {
+				consolidatePushes = false
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: -consolidate-pushes must be 'true' or 'false'\n")
 				os.Exit(1)
 			}
 			i++ // Skip the next argument since we consumed it
@@ -94,7 +109,7 @@ func main() {
 	}
 
 	// Process and consolidate the feed
-	consolidatedFeed := consolidateCommits(feed, customTitle)
+	consolidatedFeed := consolidateCommits(feed, customTitle, consolidatePushes)
 
 	// Render in the specified format
 	err = renderFeed(consolidatedFeed, format)
@@ -126,7 +141,7 @@ func renderJSON(feed *gofeed.Feed) error {
 }
 
 // consolidateCommits groups commit/push activities by repository/branch and returns a new feed
-func consolidateCommits(feed *gofeed.Feed, customTitle string) *gofeed.Feed {
+func consolidateCommits(feed *gofeed.Feed, customTitle string, consolidatePushes bool) *gofeed.Feed {
 	// Extract username from feed link or items
 	username := extractUsername(feed)
 
@@ -153,48 +168,72 @@ func consolidateCommits(feed *gofeed.Feed, customTitle string) *gofeed.Feed {
 		Items:         []*gofeed.Item{},
 	}
 
-	// Group items by repository/branch for commits/pushes
-	branchGroups := make(map[string]*BranchActivity)
-	nonCommitItems := []*gofeed.Item{}
+	// Group items by repository/branch for commits/pushes (if consolidating)
+	if consolidatePushes {
+		branchGroups := make(map[string]*BranchActivity)
+		nonCommitItems := []*gofeed.Item{}
 
-	for _, item := range feed.Items {
-		if isCommitOrPush(item.Title) {
-			activity := extractBranchActivity(item, username)
-			if activity != nil {
-				key := fmt.Sprintf("%s/%s", activity.Repo, activity.Branch)
-				if existing, exists := branchGroups[key]; exists {
-					// Merge commits and update latest time
-					existing.Commits = append(existing.Commits, activity.Commits...)
-					if activity.LatestTime != nil && (existing.LatestTime == nil || activity.LatestTime.After(*existing.LatestTime)) {
-						existing.LatestTime = activity.LatestTime
-						existing.CompareLink = activity.CompareLink
+		for _, item := range feed.Items {
+			if isCommitOrPush(item.Title) {
+				activity := extractBranchActivity(item, username)
+				if activity != nil {
+					key := fmt.Sprintf("%s/%s", activity.Repo, activity.Branch)
+					if existing, exists := branchGroups[key]; exists {
+						// Merge commits and update latest time
+						existing.Commits = append(existing.Commits, activity.Commits...)
+						if activity.LatestTime != nil && (existing.LatestTime == nil || activity.LatestTime.After(*existing.LatestTime)) {
+							existing.LatestTime = activity.LatestTime
+							existing.CompareLink = activity.CompareLink
+						}
+					} else {
+						branchGroups[key] = activity
 					}
 				} else {
-					branchGroups[key] = activity
+					// If we can't extract branch activity, keep as-is
+					nonCommitItems = append(nonCommitItems, item)
 				}
 			} else {
-				// If we can't extract branch activity, keep as-is
 				nonCommitItems = append(nonCommitItems, item)
 			}
-		} else {
-			nonCommitItems = append(nonCommitItems, item)
 		}
-	}
 
-	// Create consolidated items for each repository/branch
-	for _, activity := range branchGroups {
-		// Generate proper comparison link that encompasses all commits
-		activity.CompareLink = generateComparisonLink(activity, username)
-		consolidatedItem := createConsolidatedBranchItem(activity, username)
-		if consolidatedItem != nil {
-			newFeed.Items = append(newFeed.Items, consolidatedItem)
+		// Create consolidated items for each repository/branch
+		for _, activity := range branchGroups {
+			// Generate proper comparison link that encompasses all commits
+			activity.CompareLink = generateComparisonLink(activity, username)
+			consolidatedItem := createConsolidatedBranchItem(activity, username)
+			if consolidatedItem != nil {
+				newFeed.Items = append(newFeed.Items, consolidatedItem)
+			}
 		}
-	}
 
-	// Process and simplify non-commit items
-	for _, item := range nonCommitItems {
-		simplifiedItem := simplifyNonCommitItem(item, username)
-		newFeed.Items = append(newFeed.Items, simplifiedItem)
+		// Process and simplify non-commit items
+		for _, item := range nonCommitItems {
+			simplifiedItem := simplifyNonCommitItem(item, username)
+			newFeed.Items = append(newFeed.Items, simplifiedItem)
+		}
+	} else {
+		// Process each item individually without consolidation
+		for _, item := range feed.Items {
+			if isCommitOrPush(item.Title) {
+				activity := extractBranchActivity(item, username)
+				if activity != nil {
+					// Generate proper comparison link that encompasses all commits in this push
+					activity.CompareLink = generateComparisonLink(activity, username)
+					individualItem := createIndividualPushItem(activity, username)
+					if individualItem != nil {
+						newFeed.Items = append(newFeed.Items, individualItem)
+					}
+				} else {
+					// If we can't extract branch activity, keep as-is
+					simplifiedItem := simplifyNonCommitItem(item, username)
+					newFeed.Items = append(newFeed.Items, simplifiedItem)
+				}
+			} else {
+				simplifiedItem := simplifyNonCommitItem(item, username)
+				newFeed.Items = append(newFeed.Items, simplifiedItem)
+			}
+		}
 	}
 
 	// Sort items by published date (most recent first)
@@ -448,6 +487,65 @@ func createConsolidatedBranchItem(activity *BranchActivity, username string) *go
 	}
 
 	return consolidatedItem
+}
+
+// createIndividualPushItem creates a single item representing one push to a repository/branch
+func createIndividualPushItem(activity *BranchActivity, username string) *gofeed.Item {
+	if len(activity.Commits) == 0 {
+		return nil
+	}
+
+	// Count commits for title
+	commitCount := len(activity.Commits)
+	commitWord := "commits"
+	if commitCount == 1 {
+		commitWord = "commit"
+	}
+	title := fmt.Sprintf("%s pushed %d %s to %s/%s", username, commitCount, commitWord, activity.Repo, activity.Branch)
+
+	// Create HTML description with commit details (same format as consolidated)
+	var htmlParts []string
+	htmlParts = append(htmlParts, "<div>")
+
+	for _, commit := range activity.Commits {
+		commitHTML := fmt.Sprintf(
+			"<div style='margin-bottom: 12px;'>"+
+				"<tt><a href='%s'>%s</a></tt>: %s"+
+				"</div>",
+			commit.Link,
+			commit.Hash,
+			commit.Message,
+		)
+		htmlParts = append(htmlParts, commitHTML)
+	}
+
+	// Add compare link if available
+	if activity.CompareLink != "" {
+		htmlParts = append(htmlParts, fmt.Sprintf(
+			"<div style='margin-top: 16px; border-top: 1px solid #eee; padding-top: 8px;'>"+
+				"<a href='%s'>View all changes</a>"+
+				"</div>",
+			activity.CompareLink,
+		))
+	}
+
+	htmlParts = append(htmlParts, "</div>")
+	htmlContent := strings.Join(htmlParts, "")
+
+	// Create individual push item
+	individualItem := &gofeed.Item{
+		Title:           title,
+		Description:     htmlContent,
+		Content:         htmlContent,
+		Link:            activity.CompareLink,
+		Published:       activity.LatestTime.Format(time.RFC3339),
+		PublishedParsed: activity.LatestTime,
+		Updated:         activity.LatestTime.Format(time.RFC3339),
+		UpdatedParsed:   activity.LatestTime,
+		GUID:            fmt.Sprintf("individual-%s-%s-%d", activity.Repo, activity.Branch, activity.LatestTime.Unix()),
+	}
+
+	return individualItem
 }
 
 // ActivityType represents different types of GitHub activities
@@ -802,6 +900,7 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "Options:\n")
 	fmt.Fprintf(os.Stderr, "  -retitle <title>    Set custom title for the output feed\n")
 	fmt.Fprintf(os.Stderr, "  -format <format>    Output format: atom, rss, or json (default: atom)\n")
+	fmt.Fprintf(os.Stderr, "  -consolidate-pushes <bool>  Consolidate pushes into single entries (default: true)\n")
 }
 
 func printVersion() {
@@ -818,7 +917,8 @@ func printHelp() {
 
 	fmt.Printf("OPTIONS:\n")
 	fmt.Printf("  -retitle <title>    Set custom title for the output feed\n")
-	fmt.Printf("  -format <format>    Output format: atom, rss, or json (default: atom)\n\n")
+	fmt.Printf("  -format <format>    Output format: atom, rss, or json (default: atom)\n")
+	fmt.Printf("  -consolidate-pushes <bool>  Consolidate pushes into single entries (default: true)\n\n")
 
 	fmt.Printf("DESCRIPTION:\n")
 	fmt.Printf("  Transforms verbose GitHub Atom feeds into clean, readable summaries.\n")
