@@ -1597,3 +1597,59 @@ func TestCreateIndividualPushItem(t *testing.T) {
 		t.Errorf("createIndividualPushItem() GUID = %v, should start with %v", result.GUID, expectedGUIDPrefix)
 	}
 }
+
+// TestOriginalCompareLinkPreservation tests the regression fix for bcc8813:
+// When not consolidating pushes, the original compare link from the feed item
+// should be preserved instead of being overridden with a generated one.
+func TestOriginalCompareLinkPreservation(t *testing.T) {
+	publishedTime, _ := time.Parse(time.RFC3339, "2025-09-15T01:28:02Z")
+
+	// Original compare link from GitHub feed item
+	originalCompareLink := "https://github.com/cdzombak/dotfiles/compare/b19a1b604e...8e9b024bed"
+
+	inputFeed := &gofeed.Feed{
+		Title: "GitHub Public Timeline Feed",
+		Items: []*gofeed.Item{
+			{
+				Title:           "cdzombak pushed dotfiles",
+				Content:         pushHTML,
+				Link:            originalCompareLink, // This is the original link we want to preserve
+				PublishedParsed: &publishedTime,
+				GUID:            "push-dotfiles-1",
+			},
+		},
+	}
+
+	// Test with consolidation disabled - should preserve original compare link
+	result := consolidateCommits(inputFeed, "", false)
+
+	if len(result.Items) != 1 {
+		t.Fatalf("Expected 1 item when consolidation disabled, got %d", len(result.Items))
+	}
+
+	item := result.Items[0]
+
+	// The item's link should be the original compare link, not a generated one
+	if item.Link != originalCompareLink {
+		t.Errorf("When consolidation disabled, item.Link = %v, want original %v", item.Link, originalCompareLink)
+	}
+
+	// The content should also contain the original compare link
+	if !strings.Contains(item.Content, originalCompareLink) {
+		t.Errorf("When consolidation disabled, content should contain original compare link %v", originalCompareLink)
+	}
+
+	// When consolidation is enabled, comparison links may be generated (this behavior is expected)
+	resultConsolidated := consolidateCommits(inputFeed, "", true)
+
+	if len(resultConsolidated.Items) != 1 {
+		t.Fatalf("Expected 1 item when consolidation enabled, got %d", len(resultConsolidated.Items))
+	}
+
+	consolidatedItem := resultConsolidated.Items[0]
+
+	// With consolidation enabled, the link might be generated but should still reference the repo
+	if !strings.Contains(consolidatedItem.Link, "github.com/cdzombak/dotfiles") {
+		t.Errorf("Consolidated item link should reference correct repository, got %v", consolidatedItem.Link)
+	}
+}
