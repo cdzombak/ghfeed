@@ -406,8 +406,8 @@ func TestSimplifyPullRequest(t *testing.T) {
 		name     string
 		item     *gofeed.Item
 		expected struct {
-			title       string
-			containsURL string
+			title        string
+			containsURL  string
 			containsText string
 		}
 	}{
@@ -419,12 +419,12 @@ func TestSimplifyPullRequest(t *testing.T) {
 				Link:    "https://github.com/mmcdole/gofeed/pull/264",
 			},
 			expected: struct {
-				title       string
-				containsURL string
+				title        string
+				containsURL  string
 				containsText string
 			}{
-				title:       "cdzombak opened PR #264 in mmcdole/gofeed: Allow outputting RSS, Atom, and JSON feeds",
-				containsURL: "https://github.com/mmcdole/gofeed/pull/264",
+				title:        "cdzombak opened PR #264 in mmcdole/gofeed: Allow outputting RSS, Atom, and JSON feeds",
+				containsURL:  "https://github.com/mmcdole/gofeed/pull/264",
 				containsText: "+3,415 -146",
 			},
 		},
@@ -436,12 +436,12 @@ func TestSimplifyPullRequest(t *testing.T) {
 				Link:    "https://github.com/test/repo/pull/1",
 			},
 			expected: struct {
-				title       string
-				containsURL string
+				title        string
+				containsURL  string
 				containsText string
 			}{
-				title:       "cdzombak opened PR #1 in test/repo: Test PR",
-				containsURL: "https://github.com/test/repo/pull/1",
+				title:        "cdzombak opened PR #1 in test/repo: Test PR",
+				containsURL:  "https://github.com/test/repo/pull/1",
 				containsText: "Test PR",
 			},
 		},
@@ -517,8 +517,8 @@ func TestSimplifyTagDelete(t *testing.T) {
 		name     string
 		item     *gofeed.Item
 		expected struct {
-			title    string
-			content  string
+			title   string
+			content string
 		}
 	}{
 		{
@@ -889,12 +889,12 @@ func TestConsolidateCommitsIntegration(t *testing.T) {
 
 	// Verify commits are included in content
 	if !strings.Contains(dotfilesItem.Content, "8e9b024") ||
-	   !strings.Contains(dotfilesItem.Content, "remove Instapaper Save app") {
+		!strings.Contains(dotfilesItem.Content, "remove Instapaper Save app") {
 		t.Error("consolidated dotfiles missing first commit")
 	}
 
 	if !strings.Contains(dotfilesItem.Content, "b19a1b6") ||
-	   !strings.Contains(dotfilesItem.Content, "fix Red Eye install") {
+		!strings.Contains(dotfilesItem.Content, "fix Red Eye install") {
 		t.Error("consolidated dotfiles missing second commit")
 	}
 
@@ -1132,9 +1132,9 @@ func TestSimplifyFunctionsWithDifferentUsers(t *testing.T) {
 
 			// Test branch creation
 			branchItem := &gofeed.Item{
-				Title: username + " created a branch",
+				Title:   username + " created a branch",
 				Content: `<a class="css-truncate css-truncate-target branch-name" title="refs/heads/feature" href="https://github.com/` + username + `/repo/tree/refs/heads/feature">refs/heads/feature</a> in <a href="/` + username + `/repo">` + username + `/repo</a>`,
-				Link:  "https://github.com/" + username + "/repo/tree/refs/heads/feature",
+				Link:    "https://github.com/" + username + "/repo/tree/refs/heads/feature",
 			}
 
 			branchResult := simplifyBranchCreate(branchItem, username)
@@ -1388,7 +1388,7 @@ func TestConsolidateCommitsWithConsolidationDisabled(t *testing.T) {
 		if !strings.Contains(item.Title, "pushed") || !strings.Contains(item.Title, "dotfiles/master") {
 			t.Errorf("Item %d title = %v, should be individual push entry", i, item.Title)
 		}
-		
+
 		// Should have individual GUID format
 		if !strings.HasPrefix(item.GUID, "individual-") {
 			t.Errorf("Item %d GUID = %v, should start with 'individual-'", i, item.GUID)
@@ -1441,7 +1441,7 @@ func TestConsolidateCommitsWithConsolidationEnabled(t *testing.T) {
 	if !strings.Contains(item.Title, "pushed") || !strings.Contains(item.Title, "commits to dotfiles/master") {
 		t.Errorf("Item title = %v, should be consolidated push entry", item.Title)
 	}
-	
+
 	// Should have consolidated GUID format
 	if !strings.HasPrefix(item.GUID, "consolidated-") {
 		t.Errorf("Item GUID = %v, should start with 'consolidated-'", item.GUID)
@@ -1450,7 +1450,7 @@ func TestConsolidateCommitsWithConsolidationEnabled(t *testing.T) {
 
 func TestCreateIndividualPushItem(t *testing.T) {
 	publishedTime, _ := time.Parse(time.RFC3339, "2025-09-15T01:28:02Z")
-	
+
 	activity := &BranchActivity{
 		Repo:   "dotfiles",
 		Branch: "master",
