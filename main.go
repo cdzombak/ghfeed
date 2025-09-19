@@ -49,7 +49,7 @@ func main() {
 	// Parse command line arguments
 	var feedURL string
 	var customTitle string
-	var format = "atom" // default format
+	var format = "atom"          // default format
 	var consolidatePushes = true // default to true for backward compatibility
 
 	args := os.Args[1:]
@@ -78,11 +78,12 @@ func main() {
 				fmt.Fprintf(os.Stderr, "Error: -consolidate-pushes flag requires a boolean argument (true or false)\n")
 				os.Exit(1)
 			}
-			if args[i+1] == "true" {
+			switch args[i+1] {
+			case "true":
 				consolidatePushes = true
-			} else if args[i+1] == "false" {
+			case "false":
 				consolidatePushes = false
-			} else {
+			default:
 				fmt.Fprintf(os.Stderr, "Error: -consolidate-pushes must be 'true' or 'false'\n")
 				os.Exit(1)
 			}
