@@ -220,8 +220,6 @@ func consolidateCommits(feed *gofeed.Feed, customTitle string, consolidatePushes
 			if isCommitOrPush(item.Title) {
 				activity := extractBranchActivity(item, username)
 				if activity != nil {
-					// Generate proper comparison link that encompasses all commits in this push
-					activity.CompareLink = generateComparisonLink(activity, username)
 					individualItem := createIndividualPushItem(activity, username)
 					if individualItem != nil {
 						newFeed.Items = append(newFeed.Items, individualItem)
