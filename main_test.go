@@ -284,6 +284,56 @@ const (
   </div>
 </div>
 </div></div>`
+
+	currentIssueOpenedHTML = `<div class="issues_opened js-feed-item-view"><div class="body">
+<!-- issues -->
+<div class="d-flex flex-items-baseline tmp-py-4">
+  <div class="d-flex flex-column width-full">
+    <div class="color-fg-muted">
+      cdzombak opened an issue in
+      <a class="Link--primary no-underline wb-break-all" href="/LearningCircuit/local-deep-research" rel="noreferrer">LearningCircuit/local-deep-research</a>
+    </div>
+    <div class="Box tmp-p-3 wb-break-all color-shadow-medium color-bg-overlay">
+      <span class="f4 lh-condensed text-bold color-fg-default">
+        <a class="color-fg-default" href="/LearningCircuit/local-deep-research/issues/3724" rel="noreferrer">Checking "Auto-index new documents" fails with HTTP 400</a>
+      </span>
+      <span class="f4 color-fg-muted ml-1">#3724</span>
+    </div>
+  </div>
+</div>
+</div></div>`
+
+	currentStarHTML = `<div class="star js-feed-item-view"><div class="body">
+<!-- watch -->
+<div class="d-flex flex-items-baseline tmp-py-4">
+  <div class="d-flex flex-column width-full">
+    <div class="color-fg-muted">
+      cdzombak starred
+      <a class="Link--primary no-underline wb-break-all" href="/offen/docker-volume-backup" rel="noreferrer">offen/docker-volume-backup</a>
+    </div>
+    <div class="Box tmp-p-3 mt-2 color-shadow-medium color-bg-overlay">
+      <div class="dashboard-break-word color-fg-muted mt-1 mb-0 repo-description">
+        <p>Backup Docker volumes locally or to any S3, WebDAV, Azure Blob Storage, Dropbox, Google Drive or SSH compatible storage</p>
+      </div>
+    </div>
+  </div>
+</div>
+</div></div>`
+
+	currentReviewCommentHTML = `<div class="issues_comment js-feed-item-view"><div class="body">
+<!-- pull_request_review_comment -->
+<div class="d-flex flex-items-baseline tmp-py-4">
+  <div class="d-flex flex-column width-full">
+    <div class="color-fg-muted">
+      cdzombak commented on
+      <a class="Link--primary" title="chore: update all GitHub Actions to latest major versions" href="https://github.com/cdzombak/gallerygen/pull/4#discussion_r3148530110" rel="noreferrer">cdzombak/gallerygen#4</a>
+    </div>
+    <div class="message markdown-body Box tmp-p-3 wb-break-all color-shadow-medium color-bg-overlay">
+      Manually confirmed that this PR is correct.
+    </div>
+  </div>
+</div>
+</div></div>`
 )
 
 func TestExtractCommitsFromContent(t *testing.T) {
@@ -494,6 +544,45 @@ func TestDetectActivityType(t *testing.T) {
 			expected: ActivityTagDelete,
 		},
 		{
+			name: "Issue opened",
+			item: &gofeed.Item{
+				Title:   "cdzombak opened an issue in local-deep-research",
+				Content: currentIssueOpenedHTML,
+			},
+			expected: ActivityIssueOpen,
+		},
+		{
+			name: "Issue comment",
+			item: &gofeed.Item{
+				Title:   "cdzombak commented on an issue in PeerTube",
+				Content: currentIssueCommentHTML,
+			},
+			expected: ActivityIssueComment,
+		},
+		{
+			name: "Pull request review comment",
+			item: &gofeed.Item{
+				Title:   "cdzombak commented on pull request cdzombak/gallerygen#4",
+				Content: currentReviewCommentHTML,
+			},
+			expected: ActivityIssueComment,
+		},
+		{
+			name: "Issue labeled",
+			item: &gofeed.Item{
+				Title: "cdzombak labeled an issue in local-deep-research",
+			},
+			expected: ActivityIssueLabel,
+		},
+		{
+			name: "Star",
+			item: &gofeed.Item{
+				Title:   "cdzombak starred offen/docker-volume-backup",
+				Content: currentStarHTML,
+			},
+			expected: ActivityStar,
+		},
+		{
 			name: "Push (should not be detected as these are handled separately)",
 			item: &gofeed.Item{
 				Title:   "cdzombak pushed dotfiles",
@@ -502,12 +591,12 @@ func TestDetectActivityType(t *testing.T) {
 			expected: ActivityOther,
 		},
 		{
-			name: "Unknown activity",
+			name: "Star title fallback",
 			item: &gofeed.Item{
 				Title:   "cdzombak starred a repository",
 				Content: "",
 			},
-			expected: ActivityOther,
+			expected: ActivityStar,
 		},
 	}
 
@@ -1088,6 +1177,9 @@ func TestConsolidateCommitsCurrentGitHubFeedShapes(t *testing.T) {
 	publishedTime2, _ := time.Parse(time.RFC3339, "2026-05-01T03:31:31-07:00")
 	publishedTime3, _ := time.Parse(time.RFC3339, "2026-04-30T14:23:59Z")
 	publishedTime4, _ := time.Parse(time.RFC3339, "2026-04-28T23:20:35Z")
+	publishedTime5, _ := time.Parse(time.RFC3339, "2026-04-28T16:06:00-07:00")
+	publishedTime6, _ := time.Parse(time.RFC3339, "2026-04-28T07:12:33-07:00")
+	publishedTime7, _ := time.Parse(time.RFC3339, "2026-04-27T15:46:42Z")
 
 	inputFeed := &gofeed.Feed{
 		Title:       "GitHub Public Timeline Feed",
@@ -1123,6 +1215,34 @@ func TestConsolidateCommitsCurrentGitHubFeedShapes(t *testing.T) {
 				PublishedParsed: &publishedTime4,
 				GUID:            "push-ecobee-current",
 			},
+			{
+				Title:           "cdzombak labeled an issue in local-deep-research",
+				Content:         "",
+				Link:            "https://github.com/LearningCircuit/local-deep-research/issues/3724",
+				PublishedParsed: &publishedTime5,
+				GUID:            "issue-labeled-3724",
+			},
+			{
+				Title:           "cdzombak opened an issue in local-deep-research",
+				Content:         currentIssueOpenedHTML,
+				Link:            "https://github.com/LearningCircuit/local-deep-research/issues/3724",
+				PublishedParsed: &publishedTime5,
+				GUID:            "issue-opened-3724",
+			},
+			{
+				Title:           "cdzombak starred offen/docker-volume-backup",
+				Content:         currentStarHTML,
+				Link:            "https://github.com/offen/docker-volume-backup",
+				PublishedParsed: &publishedTime6,
+				GUID:            "star-docker-volume-backup",
+			},
+			{
+				Title:           "cdzombak commented on pull request cdzombak/gallerygen#4",
+				Content:         currentReviewCommentHTML,
+				Link:            "https://github.com/cdzombak/gallerygen/pull/4#discussion_r3148530110",
+				PublishedParsed: &publishedTime7,
+				GUID:            "review-comment-gallerygen-4",
+			},
 		},
 	}
 
@@ -1132,15 +1252,19 @@ func TestConsolidateCommitsCurrentGitHubFeedShapes(t *testing.T) {
 		t.Errorf("consolidateCommits() title = %v, want custom title", result.Title)
 	}
 
-	if len(result.Items) != 4 {
-		t.Fatalf("consolidateCommits() items count = %d, want 4", len(result.Items))
+	if len(result.Items) != 8 {
+		t.Fatalf("consolidateCommits() items count = %d, want 8", len(result.Items))
 	}
 
 	assertItemOrder(t, result.Items, []string{
-		"cdzombak commented on an issue in PeerTube",
+		"cdzombak commented on issue #7542 in Chocobozzz/PeerTube: Duplicate move-to-object-storage jobs",
 		"cdzombak merged PR #3700 in LearningCircuit/local-deep-research: add HTTPS support for ntfy.sh notifications",
 		"cdzombak pushed 2 commits to dotfiles/master",
 		"cdzombak pushed 1 commit to ecobee_influx_connector/main",
+		"cdzombak labeled issue #3724 in LearningCircuit/local-deep-research",
+		"cdzombak opened issue #3724 in LearningCircuit/local-deep-research: Checking \"Auto-index new documents\" fails with HTTP 400",
+		"cdzombak starred offen/docker-volume-backup",
+		"cdzombak commented on PR #4 in cdzombak/gallerygen: chore: update all GitHub Actions to latest major versions",
 	})
 
 	dotfilesItem := findItemContainingTitle(result.Items, "dotfiles/master")
@@ -1170,12 +1294,44 @@ func TestConsolidateCommitsCurrentGitHubFeedShapes(t *testing.T) {
 		t.Error("current merged PR item missing diff stats")
 	}
 
-	issueCommentItem := findItemContainingTitle(result.Items, "commented on an issue")
+	issueCommentItem := findItemContainingTitle(result.Items, "commented on issue #7542")
 	if issueCommentItem == nil {
 		t.Fatal("consolidateCommits() missing current issue comment item")
 	}
-	if issueCommentItem.Content != `<div style='margin-bottom: 12px;'><a href='https://github.com/Chocobozzz/PeerTube/issues/7542#issuecomment-4359305026'>View activity</a></div>` {
-		t.Errorf("issue comment content = %v, want generic activity link", issueCommentItem.Content)
+	if !strings.Contains(issueCommentItem.Content, "View issue comment <tt>#7542</tt>") {
+		t.Errorf("issue comment content = %v, want issue comment link", issueCommentItem.Content)
+	}
+
+	issueOpenItem := findItemContainingTitle(result.Items, "opened issue #3724")
+	if issueOpenItem == nil {
+		t.Fatal("consolidateCommits() missing current issue open item")
+	}
+	if !strings.Contains(issueOpenItem.Content, "Checking \"Auto-index new documents\" fails with HTTP 400") {
+		t.Error("current issue open item missing issue title")
+	}
+
+	issueLabelItem := findItemContainingTitle(result.Items, "labeled issue #3724")
+	if issueLabelItem == nil {
+		t.Fatal("consolidateCommits() missing current issue label item")
+	}
+	if !strings.Contains(issueLabelItem.Content, "View issue <tt>#3724</tt>") {
+		t.Error("current issue label item missing issue link")
+	}
+
+	starItem := findItemContainingTitle(result.Items, "starred offen/docker-volume-backup")
+	if starItem == nil {
+		t.Fatal("consolidateCommits() missing current star item")
+	}
+	if !strings.Contains(starItem.Content, "Backup Docker volumes locally") {
+		t.Error("current star item missing repository description")
+	}
+
+	reviewCommentItem := findItemContainingTitle(result.Items, "commented on PR #4")
+	if reviewCommentItem == nil {
+		t.Fatal("consolidateCommits() missing current review comment item")
+	}
+	if !strings.Contains(reviewCommentItem.Content, "View PR comment <tt>#4</tt>") {
+		t.Error("current review comment item missing PR comment link")
 	}
 }
 

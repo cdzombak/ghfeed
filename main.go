@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"os"
 	"regexp"
 	"slices"
@@ -360,7 +361,7 @@ func extractCommitsFromContent(content string) []Commit {
 		if len(match) >= 5 {
 			commit := Commit{
 				Hash:    match[3], // short hash
-				Message: strings.TrimSpace(match[4]),
+				Message: html.UnescapeString(strings.TrimSpace(match[4])),
 				Link:    "https://github.com" + match[1], // full commit URL
 			}
 			commits = append(commits, commit)
@@ -376,7 +377,7 @@ func extractCommitsFromContent(content string) []Commit {
 			if len(match) >= 5 {
 				commit := Commit{
 					Hash:    match[3], // short hash
-					Message: strings.TrimSpace(match[4]),
+					Message: html.UnescapeString(strings.TrimSpace(match[4])),
 					Link:    "https://github.com" + match[1], // full commit URL
 				}
 				commits = append(commits, commit)
@@ -572,6 +573,10 @@ const (
 	ActivityBranchCreate
 	ActivityBranchDelete
 	ActivityTagDelete
+	ActivityIssueOpen
+	ActivityIssueComment
+	ActivityIssueLabel
+	ActivityStar
 	ActivityOther
 )
 
@@ -594,6 +599,18 @@ func detectActivityType(item *gofeed.Item) ActivityType {
 	if strings.Contains(title, "deleted") && (strings.Contains(title, "tag") || strings.Contains(item.Content, "tag")) {
 		return ActivityTagDelete
 	}
+	if strings.Contains(title, "opened an issue") {
+		return ActivityIssueOpen
+	}
+	if strings.Contains(title, "commented on an issue") || strings.Contains(title, "commented on pull request") {
+		return ActivityIssueComment
+	}
+	if strings.Contains(title, "labeled an issue") {
+		return ActivityIssueLabel
+	}
+	if strings.Contains(title, "starred") {
+		return ActivityStar
+	}
 
 	return ActivityOther
 }
@@ -613,6 +630,14 @@ func simplifyNonCommitItem(item *gofeed.Item, username string) *gofeed.Item {
 		return simplifyBranchDelete(item, username)
 	case ActivityTagDelete:
 		return simplifyTagDelete(item, username)
+	case ActivityIssueOpen:
+		return simplifyIssueOpen(item, username)
+	case ActivityIssueComment:
+		return simplifyIssueComment(item, username)
+	case ActivityIssueLabel:
+		return simplifyIssueLabel(item, username)
+	case ActivityStar:
+		return simplifyStar(item, username)
 	default:
 		// For other activities, create a basic simplified version
 		return simplifyOtherActivity(item, username)
@@ -896,6 +921,152 @@ func simplifyTagDelete(item *gofeed.Item, username string) *gofeed.Item {
 		Title:           title,
 		Description:     htmlContent,
 		Content:         htmlContent,
+		Link:            link,
+		Published:       item.Published,
+		PublishedParsed: item.PublishedParsed,
+		Updated:         item.Updated,
+		UpdatedParsed:   item.UpdatedParsed,
+		Authors:         item.Authors,
+		GUID:            item.GUID,
+	}
+}
+
+func simplifyIssueOpen(item *gofeed.Item, username string) *gofeed.Item {
+	repo, number, _ := issueOrPullDetailsFromLink(item.Link)
+	issueTitle := extractLinkedTitle(item.Content, `/issues/\d+`)
+
+	title := fmt.Sprintf("%s opened issue #%s in %s", username, number, repo)
+	if issueTitle != "" {
+		title += ": " + issueTitle
+	}
+
+	htmlContent := `<div style='margin-bottom: 12px;'>`
+	htmlContent += fmt.Sprintf(`<a href='%s'>View issue <tt>#%s</tt></a>`, item.Link, number)
+	if issueTitle != "" {
+		htmlContent += fmt.Sprintf(`<div style='margin-top: 8px; font-weight: bold;'>%s</div>`, issueTitle)
+	}
+	htmlContent += `</div>`
+
+	return copyItemWithSimplifiedContent(item, title, htmlContent, item.Link)
+}
+
+func simplifyIssueComment(item *gofeed.Item, username string) *gofeed.Item {
+	repo, number, kind := issueOrPullDetailsFromLink(item.Link)
+	if kind == "" {
+		kind = "issue"
+	}
+
+	subject := extractLinkTitleAttribute(item.Content, item.Link)
+	label := "issue"
+	titleKind := "issue"
+	if kind == "pull" {
+		label = "PR"
+		titleKind = "PR"
+	}
+
+	title := fmt.Sprintf("%s commented on %s #%s in %s", username, titleKind, number, repo)
+	if subject != "" {
+		title += ": " + subject
+	}
+
+	htmlContent := `<div style='margin-bottom: 12px;'>`
+	htmlContent += fmt.Sprintf(`<a href='%s'>View %s comment <tt>#%s</tt></a>`, item.Link, label, number)
+	if subject != "" {
+		htmlContent += fmt.Sprintf(`<div style='margin-top: 8px; font-weight: bold;'>%s</div>`, subject)
+	}
+	htmlContent += `</div>`
+
+	return copyItemWithSimplifiedContent(item, title, htmlContent, item.Link)
+}
+
+func simplifyIssueLabel(item *gofeed.Item, username string) *gofeed.Item {
+	repo, number, _ := issueOrPullDetailsFromLink(item.Link)
+
+	title := fmt.Sprintf("%s labeled issue #%s in %s", username, number, repo)
+	htmlContent := fmt.Sprintf(`<div style='margin-bottom: 12px;'><a href='%s'>View issue <tt>#%s</tt></a></div>`, item.Link, number)
+
+	return copyItemWithSimplifiedContent(item, title, htmlContent, item.Link)
+}
+
+func simplifyStar(item *gofeed.Item, username string) *gofeed.Item {
+	repo := ""
+	if item.Link != "" {
+		repoRegex := regexp.MustCompile(`github\.com/([^/]+/[^/]+)`)
+		matches := repoRegex.FindStringSubmatch(item.Link)
+		if len(matches) > 1 {
+			repo = matches[1]
+		}
+	}
+	if repo == "" {
+		starRegex := regexp.MustCompile(`starred ([^/]+/[^/\s]+)`)
+		matches := starRegex.FindStringSubmatch(item.Title)
+		if len(matches) > 1 {
+			repo = matches[1]
+		}
+	}
+
+	description := ""
+	if item.Content != "" {
+		descriptionRegex := regexp.MustCompile(`(?is)repo-description[^>]*>\s*<p>([^<]+)</p>`)
+		matches := descriptionRegex.FindStringSubmatch(item.Content)
+		if len(matches) > 1 {
+			description = strings.TrimSpace(html.UnescapeString(matches[1]))
+		}
+	}
+
+	title := fmt.Sprintf("%s starred %s", username, repo)
+	htmlContent := `<div style='margin-bottom: 12px;'>`
+	htmlContent += fmt.Sprintf(`<a href='%s'>View repository: <tt>%s</tt></a>`, item.Link, repo)
+	if description != "" {
+		htmlContent += fmt.Sprintf(`<div style='margin-top: 8px;'>%s</div>`, description)
+	}
+	htmlContent += `</div>`
+
+	return copyItemWithSimplifiedContent(item, title, htmlContent, item.Link)
+}
+
+func issueOrPullDetailsFromLink(link string) (repo string, number string, kind string) {
+	linkRegex := regexp.MustCompile(`github\.com/([^/]+/[^/]+)/(issues|pull)/(\d+)`)
+	matches := linkRegex.FindStringSubmatch(link)
+	if len(matches) > 3 {
+		kind = "issue"
+		if matches[2] == "pull" {
+			kind = "pull"
+		}
+		return matches[1], matches[3], kind
+	}
+	return "", "", ""
+}
+
+func extractLinkedTitle(content string, hrefPathPattern string) string {
+	if content == "" {
+		return ""
+	}
+	titleRegex := regexp.MustCompile(`(?is)<a[^>]*href="[^"]*` + hrefPathPattern + `"[^>]*>([^<]+)</a>`)
+	matches := titleRegex.FindStringSubmatch(content)
+	if len(matches) > 1 {
+		return strings.TrimSpace(html.UnescapeString(matches[1]))
+	}
+	return ""
+}
+
+func extractLinkTitleAttribute(content string, link string) string {
+	if content == "" || link == "" {
+		return ""
+	}
+	titleRegex := regexp.MustCompile(`(?is)<a[^>]*title="([^"]+)"[^>]*href="` + regexp.QuoteMeta(link) + `"`)
+	matches := titleRegex.FindStringSubmatch(content)
+	if len(matches) > 1 {
+		return strings.TrimSpace(html.UnescapeString(matches[1]))
+	}
+	return ""
+}
+
+func copyItemWithSimplifiedContent(item *gofeed.Item, title string, content string, link string) *gofeed.Item {
+	return &gofeed.Item{
+		Title:           title,
+		Description:     content,
+		Content:         content,
 		Link:            link,
 		Published:       item.Published,
 		PublishedParsed: item.PublishedParsed,
