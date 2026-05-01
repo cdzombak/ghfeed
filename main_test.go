@@ -175,6 +175,115 @@ const (
   </div>
 </div>
 </div></div>`
+
+	currentRepoPushHTML = `<div class="repo-push js-feed-item-view"><div class="body">
+<!-- push -->
+<div class="d-flex flex-items-baseline tmp-py-4">
+  <div class="d-flex flex-column width-full">
+    <div class="color-fg-muted">
+      <a class="Link--primary no-underline wb-break-all" href="/cdzombak" rel="noreferrer">cdzombak</a>
+      pushed to
+      <a class="branch-name" href="/cdzombak/ecobee_influx_connector/tree/main" rel="noreferrer">main</a>
+      in
+      <a class="Link--primary no-underline wb-break-all" href="/cdzombak/ecobee_influx_connector" rel="noreferrer">cdzombak/ecobee_influx_connector</a>
+      <span>
+        · <relative-time tense="past" datetime="2026-04-28T23:20:35Z" data-view-component="true">April 28, 2026 23:20</relative-time>
+      </span>
+
+      <div class="Box tmp-p-3 mt-2 color-shadow-medium color-bg-overlay">
+        <span>1 commit to</span>
+        <a class="branch-name" href="/cdzombak/ecobee_influx_connector/tree/main" rel="noreferrer">main</a>
+
+        <div class="commits pusher-is-only-committer">
+          <ul class="list-style-none">
+            <li class="d-flex flex-items-baseline">
+              <code><a class="mr-1" href="/cdzombak/ecobee_influx_connector/commit/20071b9b62edcd095c9457e71e8194df69edb062" rel="noreferrer">20071b9</a></code>
+              <div class="dashboard-break-word lh-condensed">
+                <blockquote>
+                  update GitHub Actions
+                </blockquote>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div></div>`
+
+	currentDotfilesPushHTML = `<div class="repo-push js-feed-item-view"><div class="body">
+<div class="d-flex flex-items-baseline tmp-py-4">
+  <div class="d-flex flex-column width-full">
+    <div class="color-fg-muted">
+      <a class="Link--primary no-underline wb-break-all" href="/cdzombak" rel="noreferrer">cdzombak</a>
+      pushed to
+      <a class="branch-name" href="/cdzombak/dotfiles/tree/master" rel="noreferrer">master</a>
+      in
+      <a class="Link--primary no-underline wb-break-all" href="/cdzombak/dotfiles" rel="noreferrer">cdzombak/dotfiles</a>
+
+      <div class="Box tmp-p-3 mt-2 color-shadow-medium color-bg-overlay">
+        <span>2 commits to</span>
+        <a class="branch-name" href="/cdzombak/dotfiles/tree/master" rel="noreferrer">master</a>
+        <div class="commits pusher-is-only-committer">
+          <ul class="list-style-none">
+            <li class="d-flex flex-items-baseline">
+              <code><a class="mr-1" href="/cdzombak/dotfiles/commit/a6ec7dccad6da245bbb9b5e2584b12903ab1b2ab" rel="noreferrer">a6ec7dc</a></code>
+              <div class="dashboard-break-word lh-condensed"><blockquote>don't uninstall Codex.app</blockquote></div>
+            </li>
+            <li class="d-flex flex-items-baseline">
+              <code><a class="mr-1" href="/cdzombak/dotfiles/commit/258a6f06e83ffb4375b6cbe42ca0d783a8dc8af4" rel="noreferrer">258a6f0</a></code>
+              <div class="dashboard-break-word lh-condensed"><blockquote>feat: add subl symlink and clean launchctl PATH for Sublime Text</blockquote></div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div></div>`
+
+	currentMergedPRHTML = `<div class="git-merge js-feed-item-view"><div class="body">
+<!-- pull_request -->
+<div class="d-flex flex-items-baseline tmp-py-4">
+  <div class="d-flex flex-column width-full">
+    <div class="color-fg-muted">
+      cdzombak
+      merged
+      <a class="Link--primary no-underline wb-break-all" aria-label="LearningCircuit/local-deep-research#3700" href="https://github.com/LearningCircuit/local-deep-research/pull/3700" rel="noreferrer">LearningCircuit/local-deep-research#3700</a>
+    </div>
+    <div class="Box tmp-p-3 my-2 color-shadow-medium color-bg-overlay">
+      <div class="tmp-ml-4">
+        <div>
+          <span class="f4 lh-condensed text-bold color-fg-default"><a class="color-fg-default text-bold" aria-label="add HTTPS support for ntfy.sh notifications" href="https://github.com/LearningCircuit/local-deep-research/pull/3700" rel="noreferrer">add HTTPS support for ntfy.sh notifications</a></span>
+          <span class="f4 color-fg-muted ml-1">#3700</span>
+          <div class="lh-condensed mb-2 mt-1">
+            <p dir="auto">This PR allows users to use ntfy.sh via HTTPS.</p>
+          </div>
+        </div>
+
+        <div class="diffstat d-inline-block mt-1">
+          <span class="color-fg-success">+2</span>
+          <span class="color-fg-danger">-1</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div></div>`
+
+	currentIssueCommentHTML = `<div class="issues_comment js-feed-item-view"><div class="body">
+<!-- issue_comment -->
+<div class="d-flex flex-items-baseline tmp-py-4">
+  <div class="d-flex flex-column width-full">
+    <div class="color-fg-muted">
+      <a class="Link--primary no-underline wb-break-all" href="/cdzombak" rel="noreferrer">cdzombak</a>
+      commented on
+      <a class="Link--primary" title="Duplicate move-to-object-storage jobs" href="https://github.com/Chocobozzz/PeerTube/issues/7542#issuecomment-4359305026" rel="noreferrer">Chocobozzz/PeerTube#7542</a>
+    </div>
+  </div>
+</div>
+</div></div>`
 )
 
 func TestExtractCommitsFromContent(t *testing.T) {
@@ -208,6 +317,17 @@ func TestExtractCommitsFromContent(t *testing.T) {
 			name:     "Empty content",
 			content:  "",
 			expected: []Commit{},
+		},
+		{
+			name:    "Current GitHub repo-push HTML",
+			content: currentRepoPushHTML,
+			expected: []Commit{
+				{
+					Hash:    "20071b9",
+					Message: "update GitHub Actions",
+					Link:    "https://github.com/cdzombak/ecobee_influx_connector/commit/20071b9b62edcd095c9457e71e8194df69edb062",
+				},
+			},
 		},
 		{
 			name: "Single commit",
@@ -585,6 +705,7 @@ func TestSimplifyTagDelete(t *testing.T) {
 
 func TestExtractBranchActivity(t *testing.T) {
 	publishedTime, _ := time.Parse(time.RFC3339, "2025-09-15T01:28:02Z")
+	currentPushTime, _ := time.Parse(time.RFC3339, "2026-04-28T23:20:35Z")
 
 	tests := []struct {
 		name     string
@@ -616,6 +737,28 @@ func TestExtractBranchActivity(t *testing.T) {
 				},
 				LatestTime:  &publishedTime,
 				CompareLink: "https://github.com/cdzombak/dotfiles/compare/b19a1b604e...8e9b024bed",
+			},
+		},
+		{
+			name: "Current repo-push with underscored repo",
+			item: &gofeed.Item{
+				Title:           "cdzombak pushed ecobee_influx_connector",
+				Content:         currentRepoPushHTML,
+				Link:            "https://github.com/cdzombak/ecobee_influx_connector/compare/6af09e4c8b...20071b9b62",
+				PublishedParsed: &currentPushTime,
+			},
+			expected: &BranchActivity{
+				Repo:   "ecobee_influx_connector",
+				Branch: "main",
+				Commits: []Commit{
+					{
+						Hash:    "20071b9",
+						Message: "update GitHub Actions",
+						Link:    "https://github.com/cdzombak/ecobee_influx_connector/commit/20071b9b62edcd095c9457e71e8194df69edb062",
+					},
+				},
+				LatestTime:  &currentPushTime,
+				CompareLink: "https://github.com/cdzombak/ecobee_influx_connector/compare/6af09e4c8b...20071b9b62",
 			},
 		},
 		{
@@ -937,6 +1080,125 @@ func TestConsolidateCommitsIntegration(t *testing.T) {
 	expectedForkTitle := "cdzombak forked mmcdole/gofeed"
 	if forkItem.Title != expectedForkTitle {
 		t.Errorf("simplified fork title = %v, want %v", forkItem.Title, expectedForkTitle)
+	}
+}
+
+func TestConsolidateCommitsCurrentGitHubFeedShapes(t *testing.T) {
+	publishedTime1, _ := time.Parse(time.RFC3339, "2026-05-01T05:40:01-07:00")
+	publishedTime2, _ := time.Parse(time.RFC3339, "2026-05-01T03:31:31-07:00")
+	publishedTime3, _ := time.Parse(time.RFC3339, "2026-04-30T14:23:59Z")
+	publishedTime4, _ := time.Parse(time.RFC3339, "2026-04-28T23:20:35Z")
+
+	inputFeed := &gofeed.Feed{
+		Title:       "GitHub Public Timeline Feed",
+		Description: "GitHub activities for cdzombak",
+		Link:        "https://github.com/cdzombak",
+		FeedLink:    "https://github.com/cdzombak.atom",
+		Items: []*gofeed.Item{
+			{
+				Title:           "cdzombak commented on an issue in PeerTube",
+				Content:         currentIssueCommentHTML,
+				Link:            "https://github.com/Chocobozzz/PeerTube/issues/7542#issuecomment-4359305026",
+				PublishedParsed: &publishedTime1,
+				GUID:            "issue-comment-7542",
+			},
+			{
+				Title:           "cdzombak contributed to LearningCircuit/local-deep-research",
+				Content:         currentMergedPRHTML,
+				Link:            "https://github.com/LearningCircuit/local-deep-research/pull/3700",
+				PublishedParsed: &publishedTime2,
+				GUID:            "pr-merged-3700",
+			},
+			{
+				Title:           "cdzombak pushed dotfiles",
+				Content:         currentDotfilesPushHTML,
+				Link:            "https://github.com/cdzombak/dotfiles/compare/98dc742a42...b68361a598",
+				PublishedParsed: &publishedTime3,
+				GUID:            "push-dotfiles-current",
+			},
+			{
+				Title:           "cdzombak pushed ecobee_influx_connector",
+				Content:         currentRepoPushHTML,
+				Link:            "https://github.com/cdzombak/ecobee_influx_connector/compare/6af09e4c8b...20071b9b62",
+				PublishedParsed: &publishedTime4,
+				GUID:            "push-ecobee-current",
+			},
+		},
+	}
+
+	result := consolidateCommits(inputFeed, "Current GitHub Feed", true)
+
+	if result.Title != "Current GitHub Feed" {
+		t.Errorf("consolidateCommits() title = %v, want custom title", result.Title)
+	}
+
+	if len(result.Items) != 4 {
+		t.Fatalf("consolidateCommits() items count = %d, want 4", len(result.Items))
+	}
+
+	assertItemOrder(t, result.Items, []string{
+		"cdzombak commented on an issue in PeerTube",
+		"cdzombak merged PR #3700 in LearningCircuit/local-deep-research: add HTTPS support for ntfy.sh notifications",
+		"cdzombak pushed 2 commits to dotfiles/master",
+		"cdzombak pushed 1 commit to ecobee_influx_connector/main",
+	})
+
+	dotfilesItem := findItemContainingTitle(result.Items, "dotfiles/master")
+	if dotfilesItem == nil {
+		t.Fatal("consolidateCommits() missing current dotfiles push")
+	}
+	if !strings.Contains(dotfilesItem.Content, "don't uninstall Codex.app") {
+		t.Error("current dotfiles push missing apostrophe commit message")
+	}
+	if !strings.Contains(dotfilesItem.Link, "github.com/cdzombak/dotfiles/compare/a6ec7dccad6da245bbb9b5e2584b12903ab1b2ab^...258a6f06e83ffb4375b6cbe42ca0d783a8dc8af4") {
+		t.Errorf("current dotfiles push link = %v, want generated full compare link", dotfilesItem.Link)
+	}
+
+	ecobeeItem := findItemContainingTitle(result.Items, "ecobee_influx_connector/main")
+	if ecobeeItem == nil {
+		t.Fatal("consolidateCommits() missing current underscored repo push")
+	}
+	if ecobeeItem.Link != "https://github.com/cdzombak/ecobee_influx_connector/commit/20071b9b62edcd095c9457e71e8194df69edb062" {
+		t.Errorf("current single-commit push link = %v, want commit link", ecobeeItem.Link)
+	}
+
+	prItem := findItemContainingTitle(result.Items, "PR #3700")
+	if prItem == nil {
+		t.Fatal("consolidateCommits() missing current merged PR item")
+	}
+	if !strings.Contains(prItem.Content, "+2 -1") {
+		t.Error("current merged PR item missing diff stats")
+	}
+
+	issueCommentItem := findItemContainingTitle(result.Items, "commented on an issue")
+	if issueCommentItem == nil {
+		t.Fatal("consolidateCommits() missing current issue comment item")
+	}
+	if issueCommentItem.Content != `<div style='margin-bottom: 12px;'><a href='https://github.com/Chocobozzz/PeerTube/issues/7542#issuecomment-4359305026'>View activity</a></div>` {
+		t.Errorf("issue comment content = %v, want generic activity link", issueCommentItem.Content)
+	}
+}
+
+func findItemContainingTitle(items []*gofeed.Item, titlePart string) *gofeed.Item {
+	for _, item := range items {
+		if strings.Contains(item.Title, titlePart) {
+			return item
+		}
+	}
+	return nil
+}
+
+func assertItemOrder(t *testing.T, items []*gofeed.Item, titles []string) {
+	t.Helper()
+
+	if len(items) != len(titles) {
+		t.Fatalf("got %d items, want %d titles", len(items), len(titles))
+	}
+
+	for i, title := range titles {
+		if items[i].Title != title {
+			t.Errorf("item %d title = %v, want %v", i, items[i].Title, title)
+		}
 	}
 }
 
@@ -1462,8 +1724,8 @@ func TestCommitOrderingWithConsolidationDisabled(t *testing.T) {
 			PublishedParsed: &publishedTime1,
 		},
 		{
-			Title:           "cdzombak pushed another-repo",
-			Content:         `<code><a href="/cdzombak/another-repo/commit/abc123def456" rel="noreferrer">abc123d</a></code>
+			Title: "cdzombak pushed another-repo",
+			Content: `<code><a href="/cdzombak/another-repo/commit/abc123def456" rel="noreferrer">abc123d</a></code>
 			<div class="dashboard-break-word lh-condensed">
 				<blockquote>older commit message</blockquote>
 			</div>

@@ -624,6 +624,7 @@ func simplifyPullRequest(item *gofeed.Item, username string) *gofeed.Item {
 	// Extract PR number and repository from link
 	prNumber := ""
 	targetRepo := ""
+	action := extractPullRequestAction(item)
 
 	if item.Link != "" {
 		// Extract PR number: /pull/264
@@ -662,7 +663,7 @@ func simplifyPullRequest(item *gofeed.Item, username string) *gofeed.Item {
 	}
 
 	// Create simplified title
-	title := fmt.Sprintf("%s opened PR #%s in %s", username, prNumber, targetRepo)
+	title := fmt.Sprintf("%s %s PR #%s in %s", username, action, prNumber, targetRepo)
 	if prTitle != "" {
 		title += ": " + prTitle
 	}
@@ -690,6 +691,28 @@ func simplifyPullRequest(item *gofeed.Item, username string) *gofeed.Item {
 		Authors:         item.Authors,
 		GUID:            item.GUID,
 	}
+}
+
+func extractPullRequestAction(item *gofeed.Item) string {
+	title := strings.ToLower(item.Title)
+	switch {
+	case strings.Contains(title, "merged"):
+		return "merged"
+	case strings.Contains(title, "closed"):
+		return "closed"
+	case strings.Contains(title, "opened"):
+		return "opened"
+	}
+
+	if item.Content != "" {
+		actionRegex := regexp.MustCompile(`(?is)\b(opened|merged|closed)\s*<a[^>]+href="[^"]*/pull/\d+"`)
+		matches := actionRegex.FindStringSubmatch(item.Content)
+		if len(matches) > 1 {
+			return strings.ToLower(matches[1])
+		}
+	}
+
+	return "opened"
 }
 
 // simplifyFork creates a clean fork entry
