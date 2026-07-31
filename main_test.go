@@ -176,6 +176,40 @@ const (
 </div>
 </div></div>`
 
+	// GitHub titles branch deletions "<user> deleted"; the branch name, repo, and
+	// even the fact that a branch (rather than a tag) was deleted appear only here.
+	branchDeleteHTML = `<div class="git-branch js-feed-item-view"><div class="body">
+<!-- delete -->
+<div class="d-flex flex-items-baseline tmp-py-4">
+  <div class="d-flex flex-column width-full">
+    <div class="color-fg-muted">
+      <span class="mr-2"><a class="d-inline-block" href="/cdzombak" rel="noreferrer"><img class="avatar avatar-user" src="https://avatars.githubusercontent.com/u/102904?s=64&amp;v=4" width="32" height="32" alt="@cdzombak"></a></span>
+      <a class="Link--primary no-underline wb-break-all" href="/cdzombak" rel="noreferrer">cdzombak</a>
+
+      deleted
+      branch
+      <span class="branch-name">refs/heads/claude/mobile-header-bookmarks-5rah37</span>
+      in
+      <a class="Link--primary no-underline wb-break-all" href="/cdzombak/bookmarks-template-dzombakdotcom" rel="noreferrer">cdzombak/bookmarks-template-dzombakdotcom</a>
+      <span>
+        · <relative-time tense="past" datetime="2026-07-30T22:06:58Z" data-view-component="true">July 30, 2026 22:06</relative-time>
+      </span>
+
+      <div class="Box tmp-p-3 mt-2 color-shadow-medium color-bg-overlay">
+        <div>
+          <div class="f4 lh-condensed text-bold color-fg-default">
+            <a class="Link--primary text-bold no-underline wb-break-all d-inline-block" href="/cdzombak/bookmarks-template-dzombakdotcom" rel="noreferrer">cdzombak/bookmarks-template-dzombakdotcom</a>
+          </div>
+            <p class="f6 color-fg-muted mt-2 mb-0">
+              <span>Updated Jul 30</span>
+            </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div></div>`
+
 	currentRepoPushHTML = `<div class="repo-push js-feed-item-view"><div class="body">
 <!-- push -->
 <div class="d-flex flex-items-baseline tmp-py-4">
@@ -536,6 +570,14 @@ func TestDetectActivityType(t *testing.T) {
 			expected: ActivityBranchDelete,
 		},
 		{
+			name: "Branch deletion (bare GitHub title)",
+			item: &gofeed.Item{
+				Title:   "cdzombak deleted",
+				Content: branchDeleteHTML,
+			},
+			expected: ActivityBranchDelete,
+		},
+		{
 			name: "Tag deletion",
 			item: &gofeed.Item{
 				Title:   "cdzombak deleted",
@@ -718,6 +760,89 @@ func TestSimplifyBranchCreate(t *testing.T) {
 
 	if !strings.Contains(result.Content, "cdz/feed-creation") {
 		t.Errorf("simplifyBranchCreate().Content should contain branch name, got %v", result.Content)
+	}
+}
+
+// GitHub links branch creations to a comparison against the all-zero SHA, which
+// renders as "There isn't anything to compare"; we link to the branch instead.
+func TestSimplifyBranchCreateReplacesZeroSHACompareLink(t *testing.T) {
+	item := &gofeed.Item{
+		Title:   "cdzombak created a branch",
+		Content: branchCreateHTML,
+		Link:    "https://github.com/cdzombak/gofeed/compare/0000000000...700c8e6fff",
+	}
+
+	result := simplifyBranchCreate(item, "cdzombak")
+
+	expectedLink := "https://github.com/cdzombak/gofeed/tree/cdz/feed-creation"
+	if result.Link != expectedLink {
+		t.Errorf("simplifyBranchCreate().Link = %v, want %v", result.Link, expectedLink)
+	}
+	if strings.Contains(result.Content, "0000000000") {
+		t.Errorf("simplifyBranchCreate().Content should not link to the all-zero SHA compare, got %v", result.Content)
+	}
+}
+
+func TestSimplifyBranchDelete(t *testing.T) {
+	tests := []struct {
+		name         string
+		item         *gofeed.Item
+		expectTitle  string
+		expectLink   string
+		expectInBody string
+	}{
+		{
+			name: "Current GitHub shape with bare title",
+			item: &gofeed.Item{
+				Title:   "cdzombak deleted",
+				Content: branchDeleteHTML,
+				Link:    "https://github.com/cdzombak/bookmarks-template-dzombakdotcom/compare/ad870a7dd2...0000000000",
+			},
+			expectTitle:  "cdzombak deleted branch claude/mobile-header-bookmarks-5rah37 in cdzombak/bookmarks-template-dzombakdotcom",
+			expectLink:   "https://github.com/cdzombak/bookmarks-template-dzombakdotcom",
+			expectInBody: "claude/mobile-header-bookmarks-5rah37",
+		},
+		{
+			name: "Legacy title with no content",
+			item: &gofeed.Item{
+				Title:   "cdzombak deleted branch feature-test",
+				Content: "",
+				Link:    "https://github.com/cdzombak/gofeed/compare/abc1234567...0000000000",
+			},
+			expectTitle:  "cdzombak deleted a branch in cdzombak/gofeed",
+			expectLink:   "https://github.com/cdzombak/gofeed",
+			expectInBody: "Branch deleted",
+		},
+		{
+			name: "No content and no usable link",
+			item: &gofeed.Item{
+				Title:   "cdzombak deleted branch feature-test",
+				Content: "",
+				Link:    "",
+			},
+			expectTitle:  "cdzombak deleted a branch",
+			expectLink:   "",
+			expectInBody: "Branch deleted",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := simplifyBranchDelete(tt.item, "cdzombak")
+
+			if result.Title != tt.expectTitle {
+				t.Errorf("simplifyBranchDelete().Title = %v, want %v", result.Title, tt.expectTitle)
+			}
+			if result.Link != tt.expectLink {
+				t.Errorf("simplifyBranchDelete().Link = %v, want %v", result.Link, tt.expectLink)
+			}
+			if !strings.Contains(result.Content, tt.expectInBody) {
+				t.Errorf("simplifyBranchDelete().Content = %v, want it to contain %v", result.Content, tt.expectInBody)
+			}
+			if strings.Contains(result.Link, "0000000000") {
+				t.Errorf("simplifyBranchDelete().Link should not be an all-zero SHA compare, got %v", result.Link)
+			}
+		})
 	}
 }
 
@@ -2069,5 +2194,55 @@ func TestOriginalCompareLinkPreservation(t *testing.T) {
 	// With consolidation enabled, the link might be generated but should still reference the repo
 	if !strings.Contains(consolidatedItem.Link, "github.com/cdzombak/dotfiles") {
 		t.Errorf("Consolidated item link should reference correct repository, got %v", consolidatedItem.Link)
+	}
+}
+
+// TestConsolidateCommitsBranchDeleteEntry is a regression test for branch
+// deletions surfacing as a bare "cdzombak deleted" entry linked to a comparison
+// against the all-zero SHA, which GitHub renders as "There isn't anything to
+// compare".
+func TestConsolidateCommitsBranchDeleteEntry(t *testing.T) {
+	publishedTime, _ := time.Parse(time.RFC3339, "2026-07-30T22:06:58Z")
+
+	inputFeed := &gofeed.Feed{
+		Title:    "GitHub Public Timeline Feed",
+		Link:     "https://github.com/cdzombak",
+		FeedLink: "https://github.com/cdzombak.atom",
+		Items: []*gofeed.Item{
+			{
+				Title:           "cdzombak deleted",
+				Content:         branchDeleteHTML,
+				Link:            "https://github.com/cdzombak/bookmarks-template-dzombakdotcom/compare/ad870a7dd2...0000000000",
+				PublishedParsed: &publishedTime,
+				GUID:            "tag:github.com,2008:push/16259233045",
+			},
+		},
+	}
+
+	for _, consolidate := range []bool{true, false} {
+		result := consolidateCommits(inputFeed, "", consolidate)
+
+		if len(result.Items) != 1 {
+			t.Fatalf("consolidateCommits(consolidatePushes=%v) items count = %d, want 1", consolidate, len(result.Items))
+		}
+
+		item := result.Items[0]
+		expectedTitle := "cdzombak deleted branch claude/mobile-header-bookmarks-5rah37 in cdzombak/bookmarks-template-dzombakdotcom"
+		if item.Title != expectedTitle {
+			t.Errorf("branch delete title (consolidatePushes=%v) = %v, want %v", consolidate, item.Title, expectedTitle)
+		}
+
+		expectedLink := "https://github.com/cdzombak/bookmarks-template-dzombakdotcom"
+		if item.Link != expectedLink {
+			t.Errorf("branch delete link (consolidatePushes=%v) = %v, want %v", consolidate, item.Link, expectedLink)
+		}
+
+		if strings.Contains(item.Link, "0000000000") || strings.Contains(item.Content, "0000000000") {
+			t.Errorf("branch delete entry (consolidatePushes=%v) still references the all-zero SHA compare: link=%v content=%v", consolidate, item.Link, item.Content)
+		}
+
+		if !strings.Contains(item.Content, "claude/mobile-header-bookmarks-5rah37") {
+			t.Errorf("branch delete content (consolidatePushes=%v) should name the deleted branch, got %v", consolidate, item.Content)
+		}
 	}
 }

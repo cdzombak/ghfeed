@@ -596,6 +596,16 @@ func detectActivityType(item *gofeed.Item) ActivityType {
 	if strings.Contains(title, "deleted branch") {
 		return ActivityBranchDelete
 	}
+	if strings.Contains(title, "deleted") {
+		// GitHub's feed titles for deletions are bare ("cdzombak deleted"), so the
+		// kind of ref deleted is only available in the item's content.
+		switch deletedRefKind(item.Content) {
+		case "branch":
+			return ActivityBranchDelete
+		case "tag":
+			return ActivityTagDelete
+		}
+	}
 	if strings.Contains(title, "deleted") && (strings.Contains(title, "tag") || strings.Contains(item.Content, "tag")) {
 		return ActivityTagDelete
 	}
@@ -806,15 +816,22 @@ func simplifyBranchCreate(item *gofeed.Item, username string) *gofeed.Item {
 		title += fmt.Sprintf(" in %s", repoName)
 	}
 
+	// The feed links branch creations to a comparison against the all-zero SHA,
+	// which GitHub can't render; link to the branch itself instead.
+	link := item.Link
+	if repoName != "" && branchName != "" {
+		link = fmt.Sprintf("https://github.com/%s/tree/%s", repoName, branchName)
+	}
+
 	htmlContent := `<div style='margin-bottom: 12px;'>`
-	htmlContent += fmt.Sprintf(`<a href='%s'>View branch: <tt>%s</tt></a>`, item.Link, branchName)
+	htmlContent += fmt.Sprintf(`<a href='%s'>View branch: <tt>%s</tt></a>`, link, branchName)
 	htmlContent += `</div>`
 
 	return &gofeed.Item{
 		Title:           title,
 		Description:     htmlContent,
 		Content:         htmlContent,
-		Link:            item.Link,
+		Link:            link,
 		Published:       item.Published,
 		PublishedParsed: item.PublishedParsed,
 		Updated:         item.Updated,
@@ -824,17 +841,90 @@ func simplifyBranchCreate(item *gofeed.Item, username string) *gofeed.Item {
 	}
 }
 
+var (
+	deletedRefSpanRegex = regexp.MustCompile(`<span class="branch-name">\s*refs/(heads|tags)/`)
+	deletedRefWordRegex = regexp.MustCompile(`(?is)\bdeleted\s+(branch|tag)\b`)
+	deletedRefNameRegex = regexp.MustCompile(`<span class="branch-name">\s*([^<]+?)\s*</span>`)
+	deletedRefRepoRegex = regexp.MustCompile(`(?is)<span class="branch-name">[^<]*</span>\s*in\s*<a[^>]*href="/?([^"/]+/[^"/]+)"`)
+)
+
+// deletedRefKind reports whether a deletion item's content describes a deleted
+// "branch" or "tag", or "" if it can't be determined.
+func deletedRefKind(content string) string {
+	if matches := deletedRefSpanRegex.FindStringSubmatch(content); len(matches) > 1 {
+		if matches[1] == "heads" {
+			return "branch"
+		}
+		return "tag"
+	}
+	if matches := deletedRefWordRegex.FindStringSubmatch(content); len(matches) > 1 {
+		return strings.ToLower(matches[1])
+	}
+	return ""
+}
+
+// deletedRefDetails extracts the deleted ref's name and its "owner/repo" from a
+// deletion item's content.
+func deletedRefDetails(content string) (refName, repo string) {
+	if matches := deletedRefNameRegex.FindStringSubmatch(content); len(matches) > 1 {
+		refName = matches[1]
+		refName = strings.TrimPrefix(refName, "refs/heads/")
+		refName = strings.TrimPrefix(refName, "refs/tags/")
+	}
+	if matches := deletedRefRepoRegex.FindStringSubmatch(content); len(matches) > 1 {
+		repo = matches[1]
+	}
+	return refName, repo
+}
+
+// repoFromGitHubLink extracts "owner/repo" from a github.com URL
+func repoFromGitHubLink(link string) string {
+	repoRegex := regexp.MustCompile(`github\.com/([^/]+/[^/]+)`)
+	matches := repoRegex.FindStringSubmatch(link)
+	if len(matches) > 1 {
+		return matches[1]
+	}
+	return ""
+}
+
 // simplifyBranchDelete creates a clean branch deletion entry
 func simplifyBranchDelete(item *gofeed.Item, username string) *gofeed.Item {
-	title := fmt.Sprintf("%s deleted a branch", username)
+	branchName, repoName := deletedRefDetails(item.Content)
+	if repoName == "" {
+		repoName = repoFromGitHubLink(item.Link)
+	}
 
-	htmlContent := `<div style='margin-bottom: 12px;'>Branch deleted</div>`
+	title := fmt.Sprintf("%s deleted a branch", username)
+	if branchName != "" {
+		title = fmt.Sprintf("%s deleted branch %s", username, branchName)
+	}
+	if repoName != "" {
+		title += fmt.Sprintf(" in %s", repoName)
+	}
+
+	htmlContent := `<div style='margin-bottom: 12px;'>`
+	if branchName != "" {
+		htmlContent += fmt.Sprintf(`Deleted branch: <tt>%s</tt>`, branchName)
+	} else {
+		htmlContent += `Branch deleted`
+	}
+	if repoName != "" {
+		htmlContent += fmt.Sprintf(` in <tt>%s</tt>`, repoName)
+	}
+	htmlContent += `</div>`
+
+	// The feed links deletions to a comparison against the all-zero SHA, which
+	// GitHub can't render; link to the repository instead.
+	link := item.Link
+	if repoName != "" {
+		link = fmt.Sprintf("https://github.com/%s", repoName)
+	}
 
 	return &gofeed.Item{
 		Title:           title,
 		Description:     htmlContent,
 		Content:         htmlContent,
-		Link:            item.Link,
+		Link:            link,
 		Published:       item.Published,
 		PublishedParsed: item.PublishedParsed,
 		Updated:         item.Updated,
