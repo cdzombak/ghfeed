@@ -803,9 +803,20 @@ func TestSimplifyBranchDelete(t *testing.T) {
 			expectInBody: "claude/mobile-header-bookmarks-5rah37",
 		},
 		{
-			name: "Legacy title with no content",
+			name: "Legacy title names the branch, no content",
 			item: &gofeed.Item{
 				Title:   "cdzombak deleted branch feature-test",
+				Content: "",
+				Link:    "https://github.com/cdzombak/gofeed/compare/abc1234567...0000000000",
+			},
+			expectTitle:  "cdzombak deleted branch feature-test in cdzombak/gofeed",
+			expectLink:   "https://github.com/cdzombak/gofeed",
+			expectInBody: "feature-test",
+		},
+		{
+			name: "Bare title, no content, repo only from link",
+			item: &gofeed.Item{
+				Title:   "cdzombak deleted",
 				Content: "",
 				Link:    "https://github.com/cdzombak/gofeed/compare/abc1234567...0000000000",
 			},
@@ -814,9 +825,9 @@ func TestSimplifyBranchDelete(t *testing.T) {
 			expectInBody: "Branch deleted",
 		},
 		{
-			name: "No content and no usable link",
+			name: "Nothing to work with",
 			item: &gofeed.Item{
-				Title:   "cdzombak deleted branch feature-test",
+				Title:   "cdzombak deleted",
 				Content: "",
 				Link:    "",
 			},
@@ -1133,10 +1144,13 @@ func TestIsCommitOrPush(t *testing.T) {
 		expected bool
 	}{
 		{"cdzombak pushed dotfiles", true},
-		{"cdzombak created branch feature-test", true},
-		{"cdzombak deleted branch old-feature", true},
-		{"cdzombak created tag v1.0.0", true},
-		{"cdzombak deleted tag v0.9.0", true},
+		// Ref creations/deletions carry no commits; consolidating them would drop
+		// them, so they are simplified as regular activities instead.
+		{"cdzombak created branch feature-test", false},
+		{"cdzombak deleted branch old-feature", false},
+		{"cdzombak created tag v1.0.0", false},
+		{"cdzombak deleted tag v0.9.0", false},
+		{"cdzombak deleted", false},
 		{"cdzombak opened a pull request", false},
 		{"cdzombak forked repository", false},
 		{"cdzombak starred repository", false},
@@ -2244,5 +2258,137 @@ func TestConsolidateCommitsBranchDeleteEntry(t *testing.T) {
 		if !strings.Contains(item.Content, "claude/mobile-header-bookmarks-5rah37") {
 			t.Errorf("branch delete content (consolidatePushes=%v) should name the deleted branch, got %v", consolidate, item.Content)
 		}
+	}
+}
+
+// TestConsolidateCommitsRefEventsSurviveLegacyTitles guards the older feed title
+// shapes ("<user> deleted branch <name>"). These used to be routed into push
+// consolidation, where a zero-commit activity produced no item and the entry
+// vanished from the feed entirely.
+func TestConsolidateCommitsRefEventsSurviveLegacyTitles(t *testing.T) {
+	publishedTime, _ := time.Parse(time.RFC3339, "2026-07-30T22:06:58Z")
+
+	tests := []struct {
+		name        string
+		item        *gofeed.Item
+		expectTitle string
+		expectLink  string
+	}{
+		{
+			name: "Legacy delete title with current content",
+			item: &gofeed.Item{
+				Title:           "cdzombak deleted branch claude/mobile-header-bookmarks-5rah37",
+				Content:         branchDeleteHTML,
+				Link:            "https://github.com/cdzombak/bookmarks-template-dzombakdotcom/compare/ad870a7dd2...0000000000",
+				PublishedParsed: &publishedTime,
+			},
+			expectTitle: "cdzombak deleted branch claude/mobile-header-bookmarks-5rah37 in cdzombak/bookmarks-template-dzombakdotcom",
+			expectLink:  "https://github.com/cdzombak/bookmarks-template-dzombakdotcom",
+		},
+		{
+			name: "Legacy delete title with no content",
+			item: &gofeed.Item{
+				Title:           "cdzombak deleted branch old-feature",
+				Content:         "",
+				Link:            "https://github.com/cdzombak/dotfiles/compare/ad870a7dd2...0000000000",
+				PublishedParsed: &publishedTime,
+			},
+			expectTitle: "cdzombak deleted branch old-feature in cdzombak/dotfiles",
+			expectLink:  "https://github.com/cdzombak/dotfiles",
+		},
+		{
+			name: "Legacy create title with current content",
+			item: &gofeed.Item{
+				Title:           "cdzombak created branch cdz/feed-creation",
+				Content:         branchCreateHTML,
+				Link:            "https://github.com/cdzombak/gofeed/compare/0000000000...700c8e6fff",
+				PublishedParsed: &publishedTime,
+			},
+			expectTitle: "cdzombak created branch cdz/feed-creation in cdzombak/gofeed",
+			expectLink:  "https://github.com/cdzombak/gofeed/tree/cdz/feed-creation",
+		},
+		{
+			name: "Legacy tag delete title",
+			item: &gofeed.Item{
+				Title:           "cdzombak deleted tag v0.0.6",
+				Content:         tagDeleteHTML,
+				Link:            "https://github.com/cdzombak/homebrew-gomod/compare/ad870a7dd2...0000000000",
+				PublishedParsed: &publishedTime,
+			},
+			expectTitle: "cdzombak deleted tag v0.0.6 in homebrew-gomod",
+			expectLink:  "https://github.com/cdzombak/homebrew-gomod",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, consolidate := range []bool{true, false} {
+				inputFeed := &gofeed.Feed{
+					Title:    "GitHub Public Timeline Feed",
+					Link:     "https://github.com/cdzombak",
+					FeedLink: "https://github.com/cdzombak.atom",
+					Items:    []*gofeed.Item{tt.item},
+				}
+
+				result := consolidateCommits(inputFeed, "", consolidate)
+
+				if len(result.Items) != 1 {
+					t.Fatalf("consolidateCommits(consolidatePushes=%v) items count = %d, want 1 (ref event was dropped)", consolidate, len(result.Items))
+				}
+				if result.Items[0].Title != tt.expectTitle {
+					t.Errorf("title (consolidatePushes=%v) = %v, want %v", consolidate, result.Items[0].Title, tt.expectTitle)
+				}
+				if result.Items[0].Link != tt.expectLink {
+					t.Errorf("link (consolidatePushes=%v) = %v, want %v", consolidate, result.Items[0].Link, tt.expectLink)
+				}
+			}
+		})
+	}
+}
+
+// TestConsolidateCommitsRefEventDoesNotPollutePush guards against a ref event
+// being merged into a real push to the same repo/branch key, which would both
+// swallow the ref event and move the push's timestamp.
+func TestConsolidateCommitsRefEventDoesNotPollutePush(t *testing.T) {
+	pushTime, _ := time.Parse(time.RFC3339, "2026-04-30T14:23:59Z")
+	deleteTime, _ := time.Parse(time.RFC3339, "2026-05-01T10:00:00Z")
+
+	inputFeed := &gofeed.Feed{
+		Title:    "GitHub Public Timeline Feed",
+		Link:     "https://github.com/cdzombak",
+		FeedLink: "https://github.com/cdzombak.atom",
+		Items: []*gofeed.Item{
+			{
+				Title:           "cdzombak deleted branch old-feature",
+				Content:         "",
+				Link:            "https://github.com/cdzombak/dotfiles/compare/ad870a7dd2...0000000000",
+				PublishedParsed: &deleteTime,
+			},
+			{
+				Title:           "cdzombak pushed dotfiles",
+				Content:         currentDotfilesPushHTML,
+				Link:            "https://github.com/cdzombak/dotfiles/compare/98dc742a42...b68361a598",
+				PublishedParsed: &pushTime,
+			},
+		},
+	}
+
+	result := consolidateCommits(inputFeed, "", true)
+
+	if len(result.Items) != 2 {
+		t.Fatalf("consolidateCommits() items count = %d, want 2", len(result.Items))
+	}
+
+	pushItem := findItemContainingTitle(result.Items, "pushed")
+	if pushItem == nil {
+		t.Fatal("consolidateCommits() missing push item")
+	}
+	if !pushItem.PublishedParsed.Equal(pushTime) {
+		t.Errorf("push item time = %v, want %v (unaffected by the branch deletion)", pushItem.PublishedParsed, pushTime)
+	}
+
+	deleteItem := findItemContainingTitle(result.Items, "deleted branch old-feature")
+	if deleteItem == nil {
+		t.Fatal("consolidateCommits() missing branch deletion item")
 	}
 }

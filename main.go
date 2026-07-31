@@ -263,23 +263,13 @@ func consolidateCommits(feed *gofeed.Feed, customTitle string, consolidatePushes
 	return newFeed
 }
 
-// isCommitOrPush determines if an item represents a commit or push activity
+// isCommitOrPush determines if an item represents a commit or push activity.
+//
+// Branch and tag creations/deletions are deliberately excluded: they carry no
+// commits, so routing them here would drop them (a zero-commit activity yields
+// no consolidated item). They are simplified as regular activities instead.
 func isCommitOrPush(title string) bool {
-	commitPushPatterns := []string{
-		"pushed",
-		"created branch",
-		"deleted branch",
-		"created tag",
-		"deleted tag",
-	}
-
-	titleLower := strings.ToLower(title)
-	for _, pattern := range commitPushPatterns {
-		if strings.Contains(titleLower, pattern) {
-			return true
-		}
-	}
-	return false
+	return strings.Contains(strings.ToLower(title), "pushed")
 }
 
 // extractUsername extracts the GitHub username from the feed
@@ -846,6 +836,8 @@ var (
 	deletedRefWordRegex = regexp.MustCompile(`(?is)\bdeleted\s+(branch|tag)\b`)
 	deletedRefNameRegex = regexp.MustCompile(`<span class="branch-name">\s*([^<]+?)\s*</span>`)
 	deletedRefRepoRegex = regexp.MustCompile(`(?is)<span class="branch-name">[^<]*</span>\s*in\s*<a[^>]*href="/?([^"/]+/[^"/]+)"`)
+
+	deletedBranchTitleRegex = regexp.MustCompile(`(?i)deleted branch\s+(\S+)`)
 )
 
 // deletedRefKind reports whether a deletion item's content describes a deleted
@@ -890,6 +882,12 @@ func repoFromGitHubLink(link string) string {
 // simplifyBranchDelete creates a clean branch deletion entry
 func simplifyBranchDelete(item *gofeed.Item, username string) *gofeed.Item {
 	branchName, repoName := deletedRefDetails(item.Content)
+	if branchName == "" {
+		// Older feed titles name the branch: "<user> deleted branch <name>"
+		if matches := deletedBranchTitleRegex.FindStringSubmatch(item.Title); len(matches) > 1 {
+			branchName = matches[1]
+		}
+	}
 	if repoName == "" {
 		repoName = repoFromGitHubLink(item.Link)
 	}
